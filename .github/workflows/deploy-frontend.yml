@@ -1,14 +1,15 @@
-name: Deploy to Cloud Run
+name: Deploy Frontend to Cloud Run
 
 on:
   push:
     branches:
       - main
       - add-cd-setup
+    paths:
+      - 'frontend/**'
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: backend
   REGION: us-central1
 
 jobs:
@@ -37,14 +38,14 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          docker build -t "${IMAGE_NAME}" .
+          IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/frontend/frontend:${{ github.sha }}"
+          docker build -t "${IMAGE_NAME}" frontend/
           docker push "${IMAGE_NAME}"
 
       - name: Deploy to Cloud Run
         run: |
-          IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
+          IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/frontend/frontend:${{ github.sha }}"
+          gcloud run deploy frontend \
             --image "${IMAGE_NAME}" \
             --platform managed \
             --region ${{ env.REGION }} \
