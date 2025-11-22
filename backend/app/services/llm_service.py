@@ -1,18 +1,18 @@
 """
 LLM Service for extracting dog attributes using Gemini.
-
-TODO: Tu colega debe implementar las llamadas reales a Gemini aquí.
-Por ahora usa datos dummy para testing.
 """
 from typing import List, Dict, Any, Optional
 from fastapi import UploadFile
+import json
+import google.generativeai as genai
+from PIL import Image
+import io
 
 from app.config import settings
 
-# TODO: Importar el SDK de Gemini
-# import google.generativeai as genai
-# genai.configure(api_key=settings.google_api_key)
-# model = genai.GenerativeModel(settings.gemini_model)
+# Configure Gemini
+genai.configure(api_key=settings.google_api_key)
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 
 async def dog_description(
@@ -72,70 +72,62 @@ async def dog_description(
     ```
     """
     
-    # ============================================================================
-    # TODO: REEMPLAZAR ESTE BLOQUE CON LLAMADA REAL A GEMINI
-    # ============================================================================
-    
     # Validar que hay imágenes
     if not images or len(images) == 0:
         return False
-    
-    # DUMMY: Simular procesamiento
-    print(f"[DUMMY LLM] Processing {len(images)} images...")
-    if description:
-        print(f"[DUMMY LLM] User description: {description}")
-    
-    # DUMMY: Retornar atributos de prueba
-    dummy_response = {
-        "es_perro": True,
-        "atributos": [
-            "mestizo",
-            "cafe",
-            "blanco",
-            "mediano",
-            "adulto",
-            "collar_negro",
-            "orejas_paradas",
-            "pelo_corto"
-        ],
-        "confianza": 0.85
-    }
-    
-    print(f"[DUMMY LLM] Extracted attributes: {dummy_response['atributos']}")
-    return dummy_response
-    
-    # ============================================================================
-    # TODO: Código real debería verse algo así:
-    # ============================================================================
-    # try:
-    #     # Preparar imágenes para Gemini
-    #     image_parts = []
-    #     for img in images:
-    #         content = await img.read()
-    #         image_parts.append({
-    #             "mime_type": img.content_type,
-    #             "data": content
-    #         })
-    #     
-    #     # Construir prompt
-    #     prompt = f"""
-    #     Analiza estas imágenes...
-    #     {f"Descripción: {description}" if description else ""}
-    #     ...resto del prompt...
-    #     """
-    #     
-    #     # Llamar a Gemini
-    #     response = model.generate_content([prompt] + image_parts)
-    #     
-    #     # Parsear respuesta JSON
-    #     result = json.loads(response.text)
-    #     
-    #     return result
-    # 
-    # except Exception as e:
-    #     print(f"Error calling Gemini: {e}")
-    #     return False
-    # ============================================================================
+
+    try:
+        print(f"🤖 Processing {len(images)} images with Gemini...")
+        if description:
+            print(f"📝 User description: {description}")
+
+        # Preparar imágenes para Gemini
+        image_parts = []
+        for img in images:
+            # Reset file pointer first in case it was read before
+            await img.seek(0)
+            content = await img.read()
+            # Convert to PIL Image
+            pil_image = Image.open(io.BytesIO(content))
+            image_parts.append(pil_image)
+            # Reset file pointer for potential later use
+            await img.seek(0)
+
+        # Construir prompt
+        prompt = _build_gemini_prompt(description)
+
+        # Llamar a Gemini
+        response = model.generate_content([prompt] + image_parts)
+
+        print(f"📊 Gemini response received")
+
+        # Parse JSON from response
+        response_text = response.text.strip()
+        # Remove markdown code blocks if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        result = json.loads(response_text)
+
+        print(f"✅ Extracted attributes: {result.get('atributos', [])}")
+        print(f"📈 Confidence: {result.get('confianza', 0)}")
+
+        return result
+
+    except json.JSONDecodeError as e:
+        print(f"❌ Error parsing Gemini JSON response: {e}")
+        print(f"Response text: {response.text}")
+        return False
+    except Exception as e:
+        print(f"❌ Error calling Gemini: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 async def extract_search_attributes(
@@ -144,43 +136,76 @@ async def extract_search_attributes(
 ) -> List[str]:
     """
     Extract search attributes from images and/or description.
-    
+
     Same as dog_description() but used for search queries.
-    
+
     Args:
         images: Optional list of images
         description: Optional text description
-        
+
     Returns:
         List[str]: List of attributes to search for
-        
-    TODO: Implementar llamada real a Gemini
     """
-    
-    # ============================================================================
-    # TODO: REEMPLAZAR ESTE BLOQUE CON LLAMADA REAL A GEMINI
-    # ============================================================================
-    
     if not images and not description:
         return []
-    
-    # DUMMY: Simular extracción
-    print(f"[DUMMY LLM] Extracting search attributes...")
+
+    # If we have images, use the full dog_description function
     if images:
-        print(f"[DUMMY LLM] Processing {len(images)} search images...")
-    if description:
-        print(f"[DUMMY LLM] Search description: {description}")
-    
-    # DUMMY: Retornar atributos de búsqueda de prueba
-    dummy_attributes = ["mestizo", "cafe", "mediano"]
-    
-    print(f"[DUMMY LLM] Search attributes: {dummy_attributes}")
-    return dummy_attributes
-    
-    # ============================================================================
-    # TODO: Usar la misma lógica que dog_description()
-    # pero retornar solo la lista de atributos
-    # ============================================================================
+        result = await dog_description(images, description)
+        if result and isinstance(result, dict):
+            return result.get("atributos", [])
+        return []
+
+    # If only description, use Gemini to extract attributes from text
+    try:
+        print(f"🔍 Extracting search attributes from description...")
+
+        prompt = f"""
+Analiza la siguiente descripción de un perro y extrae los atributos relevantes.
+
+Descripción: {description}
+
+Extrae atributos como:
+- RAZA: raza aproximada (ej: labrador, mestizo, quiltro, pastor_aleman)
+- COLOR: color(es) del pelaje (ej: amarillo, negro, cafe, blanco)
+- TAMAÑO: pequeno, mediano, grande
+- EDAD: cachorro, joven, adulto, senior
+- CARACTERÍSTICAS ESPECIALES: collar, arnes, manchas, orejas_caidas, pelo_corto, pelo_largo, etc.
+
+Formato de respuesta (JSON estricto):
+{{
+  "atributos": ["raza", "color1", "color2", "tamano", "edad", "caracteristica1", ...]
+}}
+
+IMPORTANTE:
+- Atributos en minúsculas, sin tildes
+- Usa guiones bajos para espacios (ej: "pastor_aleman", "pelo_largo")
+- Incluye SOLO atributos mencionados o claramente inferibles de la descripción
+"""
+
+        response = model.generate_content(prompt)
+        response_text = response.text.strip()
+
+        # Remove markdown code blocks if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        result = json.loads(response_text)
+        attributes = result.get("atributos", [])
+
+        print(f"✅ Search attributes: {attributes}")
+        return attributes
+
+    except Exception as e:
+        print(f"❌ Error extracting search attributes: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
 
 # Helper function para tu colega
