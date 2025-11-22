@@ -4,7 +4,7 @@ with sync_playwright() as p:
     #Connect to the page
     browser = p.chromium.launch(headless=False)
     page = browser.new_page()
-    page.goto("https://www.instagram.com/perritos_encontrados_santiago/")
+    page.goto("https://www.instagram.com/***/")
     next = ""
     cont = 1
     input("start")
