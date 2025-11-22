@@ -22,17 +22,3 @@ class SearchResponse(BaseModel):
     results: List[DogSightingSearchResult]
     search_attributes: List[str] = Field(..., description="Attributes extracted from search query")
     total_results: int
-
-
-class ReunionReportCreate(BaseModel):
-    """Schema for creating a reunion report."""
-    dog_sighting_id: str = Field(..., description="UUID of the dog sighting")
-    verification_image: str = Field(..., description="Base64-encoded verification image")
-    message: Optional[str] = Field(None, description="Optional message from user")
-
-
-class ReunionReportResponse(BaseModel):
-    """Schema for reunion report response."""
-    id: str
-    status: str
-    message: str = "Tu reporte ha sido enviado. Lo revisaremos pronto."
