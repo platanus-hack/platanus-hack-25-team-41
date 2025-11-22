@@ -490,6 +490,44 @@ async def create_reunion_report(
 
 
 # ============================================================================
+# Map Endpoints
+# ============================================================================
+
+@app.get("/api/map/sightings", tags=["Map"])
+async def get_map_sightings():
+    """
+    Get dog sightings optimized for map display.
+    Returns minimal data: location, photo, and description.
+    """
+    return {
+        "sightings": [
+            {
+                "id": "1",
+                "latitude": -33.4489,
+                "longitude": -70.6693,
+                "photo": "https://images.unsplash.com/photo-1587300003388-59208cc962cb",
+                "description": "Perro labrador color café, collar rojo",
+            },
+            {
+                "id": "2",
+                "latitude": -33.4372,
+                "longitude": -70.6506,
+                "photo": "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e",
+                "description": "Pastor alemán, sin collar",
+            },
+            {
+                "id": "3",
+                "latitude": -33.4569,
+                "longitude": -70.6483,
+                "photo": "https://images.unsplash.com/photo-1558788353-f76d92427f16",
+                "description": "Golden retriever cachorro",
+            }
+        ],
+        "total": 3
+    }
+
+
+# ============================================================================
 # Root Endpoint
 # ============================================================================
 
