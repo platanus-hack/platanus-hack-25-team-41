@@ -408,37 +408,40 @@ async def get_recent_sightings(
 # ============================================================================
 
 @app.get("/api/map/sightings", tags=["Map"])
-async def get_map_sightings():
+async def get_map_sightings(db: Session = Depends(get_db)):
     """
     Get dog sightings optimized for map display.
     Returns minimal data: location, photo, and description.
     """
-    return {
-        "sightings": [
+    try:
+        sightings = db.query(DogSighting).filter(
+            DogSighting.status == "active",
+            DogSighting.latitude.isnot(None),
+            DogSighting.longitude.isnot(None)
+        ).all()
+
+        sightings_data = [
             {
-                "id": "1",
-                "latitude": -33.4489,
-                "longitude": -70.6693,
-                "photo": "https://images.unsplash.com/photo-1587300003388-59208cc962cb",
-                "description": "Perro labrador color café, collar rojo",
-            },
-            {
-                "id": "2",
-                "latitude": -33.4372,
-                "longitude": -70.6506,
-                "photo": "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e",
-                "description": "Pastor alemán, sin collar",
-            },
-            {
-                "id": "3",
-                "latitude": -33.4569,
-                "longitude": -70.6483,
-                "photo": "https://images.unsplash.com/photo-1558788353-f76d92427f16",
-                "description": "Golden retriever cachorro",
+                "id": str(sighting.id),
+                "latitude": sighting.latitude,
+                "longitude": sighting.longitude,
+                "photo": sighting.image_urls[0] if sighting.image_urls else None,
+                "description": sighting.user_description or ", ".join(sighting.attributes[:3]) if sighting.attributes else "Perro encontrado",
             }
-        ],
-        "total": 3
-    }
+            for sighting in sightings
+        ]
+
+        return {
+            "sightings": sightings_data,
+            "total": len(sightings_data)
+        }
+
+    except Exception as e:
+        print(f"❌ Error getting map sightings: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting map sightings: {str(e)}"
+        )
 
 
 # ============================================================================
