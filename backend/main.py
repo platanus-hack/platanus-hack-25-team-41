@@ -25,6 +25,16 @@ from app.services.llm_service import dog_description, extract_search_attributes
 from app.services.matching_service import matching_service
 
 
+def format_search_results(results):
+    search_results = []
+    for sighting, match_score, distance_km in results:
+        result = DogSightingSearchResult.from_orm_model(sighting)
+        result.match_score = match_score
+        result.distance_km = distance_km
+        search_results.append(result)
+    return search_results
+
+
 # ============================================================================
 # FastAPI App Setup
 # ============================================================================
@@ -33,10 +43,9 @@ app = FastAPI(
     title="Lost Dogs Finder API",
     description="API para reportar y buscar perros perdidos usando IA",
     version="1.0.0",
-    docs_url="/docs" if settings.debug else None,  # Disable docs in production
+    docs_url="/docs" if settings.debug else None,
 )
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -55,10 +64,9 @@ async def startup_event():
     """Initialize database on startup."""
     print("🚀 Starting Lost Dogs Finder API....")
     print(f"📍 Environment: {settings.environment}")
-    print(f"🗄️  Database: {settings.database_url.split('@')[-1]}")  # Hide credentials
+    print(f"🗄️  Database: {settings.database_url.split('@')[-1]}")
     print(f"☁️  GCS Bucket: {settings.gcs_bucket_name}")
-    
-    # Create tables if they don't exist
+
     init_db()
     print("✅ Database initialized")
 
@@ -79,17 +87,16 @@ async def health_check(db: Session = Depends(get_db)):
     Health check endpoint for monitoring.
     """
     try:
-        # Test database connection
         db.execute(text("SELECT 1"))
         db_status = "connected"
     except Exception as e:
         db_status = f"error: {str(e)}"
-    
+
     return {
         "status": "healthy" if db_status == "connected" else "unhealthy",
         "database": db_status,
-        "gcs": "connected",  # Assume GCS is available
-        "llm": "dummy",  # Change to "gemini" when implemented
+        "gcs": "connected",
+        "llm": "dummy",
         "environment": settings.environment,
     }
 
@@ -124,7 +131,6 @@ async def create_sighting(
     - LLM automatically extracts dog attributes
     """
     try:
-        # Validate number of images
         if not images or len(images) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -136,19 +142,15 @@ async def create_sighting(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Maximum {settings.max_images_per_sighting} images allowed"
             )
-        
-        # 1. Upload images to GCS
+
         print(f"📤 Uploading {len(images)} images to GCS...")
         image_urls = await storage_service.upload_multiple_images(images)
         print(f"✅ Images uploaded: {image_urls}")
-        
-        # 2. Extract attributes using LLM
+
         print("🤖 Extracting dog attributes with LLM...")
         llm_result = await dog_description(images, description)
-        
-        # Check if it's a dog
+
         if not llm_result or llm_result.get("es_perro") == False:
-            # Delete uploaded images
             for url in image_urls:
                 await storage_service.delete_image(url)
             
@@ -159,8 +161,7 @@ async def create_sighting(
         
         attributes = llm_result.get("atributos", [])
         print(f"✅ Extracted attributes: {attributes}")
-        
-        # 3. Create database record
+
         new_sighting = DogSighting(
             image_urls=image_urls,
             user_description=description,
@@ -178,10 +179,9 @@ async def create_sighting(
         db.add(new_sighting)
         db.commit()
         db.refresh(new_sighting)
-        
+
         print(f"✅ Sighting created with ID: {new_sighting.id}")
-        
-        # Return response
+
         return DogSightingResponse.from_orm_model(new_sighting)
     
     except HTTPException:
@@ -217,19 +217,17 @@ async def search_sightings(
     Note: To search by photo, use POST /api/sightings/search with multipart/form-data
     """
     try:
-        # Extract attributes from description
         print(f"🔍 Searching with description: {description}")
         search_attrs = await extract_search_attributes(description=description)
-        
+
         if not search_attrs:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No se pudieron extraer atributos de búsqueda. Proporciona más detalles."
             )
-        
+
         print(f"🔍 Search attributes: {search_attrs}")
-        
-        # Find matches
+
         results = matching_service.find_matches(
             db=db,
             search_attributes=search_attrs,
@@ -238,15 +236,8 @@ async def search_sightings(
             radius_km=radius,
             limit=limit
         )
-        
-        # Format results
-        search_results = []
-        for sighting, match_score, distance_km in results:
-            result = DogSightingSearchResult.from_orm_model(sighting)
-            result.match_score = match_score
-            result.distance_km = distance_km
-            search_results.append(result)
-        
+
+        search_results = format_search_results(results)
         print(f"✅ Found {len(search_results)} matches")
         
         return SearchResponse(
@@ -292,23 +283,21 @@ async def search_sightings_with_image(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Debes proporcionar al menos una foto o descripción"
             )
-        
-        # Extract attributes
+
         print(f"🔍 Searching with {len(images) if images else 0} images and description")
         search_attrs = await extract_search_attributes(
             images=images,
             description=description
         )
-        
+
         if not search_attrs:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No se pudieron extraer atributos de búsqueda"
             )
-        
+
         print(f"🔍 Search attributes: {search_attrs}")
-        
-        # Find matches (same as GET endpoint)
+
         results = matching_service.find_matches(
             db=db,
             search_attributes=search_attrs,
@@ -317,15 +306,8 @@ async def search_sightings_with_image(
             radius_km=radius,
             limit=limit
         )
-        
-        # Format results
-        search_results = []
-        for sighting, match_score, distance_km in results:
-            result = DogSightingSearchResult.from_orm_model(sighting)
-            result.match_score = match_score
-            result.distance_km = distance_km
-            search_results.append(result)
-        
+
+        search_results = format_search_results(results)
         print(f"✅ Found {len(search_results)} matches")
         
         return SearchResponse(
@@ -409,16 +391,12 @@ async def get_recent_sightings(
             query = query.filter(
                 DogSighting.neighborhood.ilike(f"%{neighborhood}%")
             )
-        
-        # Get total count
+
         total = query.count()
-        
-        # Get paginated results
         sightings = query.order_by(
             DogSighting.created_at.desc()
         ).offset(offset).limit(limit).all()
-        
-        # Convert to response format
+
         sighting_responses = [
             DogSightingResponse.from_orm_model(s) for s in sightings
         ]
@@ -463,23 +441,20 @@ async def create_reunion_report(
     This will be manually validated by admins.
     """
     try:
-        # Validate sighting exists
         sighting = db.query(DogSighting).filter(
             DogSighting.id == uuid.UUID(dog_sighting_id)
         ).first()
-        
+
         if not sighting:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Sighting not found"
             )
-        
-        # Upload verification image
+
         print(f"📤 Uploading verification image...")
         verification_url = await storage_service.upload_image(verification_image)
         print(f"✅ Verification image uploaded: {verification_url}")
-        
-        # Create reunion report
+
         report = ReunionReport(
             dog_sighting_id=uuid.UUID(dog_sighting_id),
             verification_image_url=verification_url,
