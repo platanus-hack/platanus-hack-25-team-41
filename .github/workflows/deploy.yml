@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - main
+      - add-cd-setup
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: fastapi-app
+  SERVICE_NAME: backend
   REGION: us-central1
 
 jobs:
