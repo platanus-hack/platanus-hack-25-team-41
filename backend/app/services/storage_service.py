@@ -53,11 +53,9 @@ class StorageService:
             file_content,
             content_type=file.content_type
         )
-        
-        # Make blob publicly accessible
-        blob.make_public()
-        
-        return blob.public_url
+
+        # Return public URL (bucket must have uniform bucket-level access with allUsers Reader permission)
+        return f"https://storage.googleapis.com/{settings.gcs_bucket_name}/{blob.name}"
     
     async def upload_multiple_images(self, files: List[UploadFile]) -> List[str]:
         """
