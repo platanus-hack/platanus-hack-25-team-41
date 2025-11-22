@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
-import { MapPin, Dog, Calendar, User } from "lucide-react"
+import { useEffect, useState, useCallback } from "react"
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet"
+import { MapPin, Dog, Calendar, User, Locate, Eye, Filter, ChevronDown, X } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 
@@ -134,16 +135,29 @@ const getStatusLabel = (estado) => {
   }
 }
 
-function LocationMarker() {
+// Calcula distancia en km entre dos puntos
+const calcularDistancia = (lat1, lng1, lat2, lng2) => {
+  const R = 6371 // Radio de la Tierra en km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+function LocationMarker({ onLocationFound }) {
   const [position, setPosition] = useState(null)
   const map = useMap()
 
   useEffect(() => {
     map.locate().on("locationfound", (e) => {
       setPosition(e.latlng)
+      onLocationFound(e.latlng)
       map.flyTo(e.latlng, 14)
     })
-  }, [map])
+  }, [map, onLocationFound])
 
   return position === null ? null : (
     <Marker
@@ -171,37 +185,212 @@ function LocationMarker() {
   )
 }
 
+// Componente para detectar cambios en el mapa
+function MapEventHandler({ onBoundsChange }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const bounds = map.getBounds()
+      onBoundsChange(bounds)
+    },
+    zoomend: () => {
+      const bounds = map.getBounds()
+      onBoundsChange(bounds)
+    },
+  })
+
+  useEffect(() => {
+    // Obtener bounds inicial
+    const bounds = map.getBounds()
+    onBoundsChange(bounds)
+  }, [map, onBoundsChange])
+
+  return null
+}
+
 export const MapaPerritos = () => {
   const [selectedDog, setSelectedDog] = useState(null)
   const [filterStatus, setFilterStatus] = useState("todos")
+  const [filterLocation, setFilterLocation] = useState("todos") // "todos", "cercanos", "visible"
+  const [userLocation, setUserLocation] = useState(null)
+  const [mapBounds, setMapBounds] = useState(null)
+  const [radioKm, setRadioKm] = useState(5) // Radio en km para filtro "cercanos"
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
-  const filteredDogs =
-    filterStatus === "todos" ? sampleDogs : sampleDogs.filter((dog) => dog.estado === filterStatus)
+  const handleLocationFound = useCallback((latlng) => {
+    setUserLocation(latlng)
+  }, [])
+
+  const handleBoundsChange = useCallback((bounds) => {
+    setMapBounds(bounds)
+  }, [])
+
+  // Filtrar perros
+  const filteredDogs = sampleDogs.filter((dog) => {
+    // Filtro por estado
+    if (filterStatus !== "todos" && dog.estado !== filterStatus) {
+      return false
+    }
+
+    // Filtro por ubicación
+    if (filterLocation === "cercanos" && userLocation) {
+      const distancia = calcularDistancia(userLocation.lat, userLocation.lng, dog.lat, dog.lng)
+      if (distancia > radioKm) {
+        return false
+      }
+    }
+
+    if (filterLocation === "visible" && mapBounds) {
+      if (!mapBounds.contains([dog.lat, dog.lng])) {
+        return false
+      }
+    }
+
+    return true
+  })
 
   return (
-    <div className="w-full h-screen pt-20">
+    <div className="relative w-full h-screen pt-20">
       {/* Filters */}
-      <div className="absolute top-24 left-4 z-[1000] bg-white rounded-xl shadow-lg p-4 max-w-xs">
-        <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <Dog className="w-5 h-5 text-[#156d95]" />
-          Filtrar por estado
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {["todos", "urgente", "pendiente", "en_proceso", "rescatado"].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                filterStatus === status
-                  ? "bg-[#156d95] text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+      <div className="fixed top-22 left-14 md:left-14 z-40">
+        {/* Botón para abrir/cerrar filtros */}
+        <motion.button
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className="bg-white rounded-xl shadow-lg p-3 flex items-center gap-2 hover:bg-gray-50 transition-colors"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Filter className="w-5 h-5 text-[#156d95]" />
+          <span className="font-medium text-gray-800 text-sm">Filtros</span>
+          <motion.div
+            animate={{ rotate: isFilterOpen ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className="w-4 h-4 text-gray-500" />
+          </motion.div>
+          {(filterStatus !== "todos" || filterLocation !== "todos") && (
+            <span className="bg-[#156d95] text-white text-xs px-2 py-0.5 rounded-full">
+              {(filterStatus !== "todos" ? 1 : 0) + (filterLocation !== "todos" ? 1 : 0)}
+            </span>
+          )}
+        </motion.button>
+
+        {/* Panel de filtros expandible */}
+        <AnimatePresence>
+          {isFilterOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-xl shadow-lg p-4 max-w-xs mt-2"
             >
-              {status === "todos" ? "Todos" : getStatusLabel(status)}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-gray-500 mt-3">{filteredDogs.length} perritos encontrados</p>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                  <Dog className="w-5 h-5 text-[#156d95]" />
+                  Filtros
+                </h3>
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Filtro por estado */}
+              <div className="mb-4">
+                <p className="text-xs text-gray-500 mb-2 font-medium">Por estado:</p>
+                <div className="flex flex-wrap gap-2">
+                  {["todos", "urgente", "pendiente", "en_proceso", "rescatado"].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setFilterStatus(status)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        filterStatus === status
+                          ? "bg-[#156d95] text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {status === "todos" ? "Todos" : getStatusLabel(status)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filtro por ubicación */}
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-2 font-medium">Por ubicación:</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setFilterLocation("todos")}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                      filterLocation === "todos"
+                        ? "bg-[#156d95] text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    <MapPin className="w-3 h-3" />
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setFilterLocation("cercanos")}
+                    disabled={!userLocation}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                      filterLocation === "cercanos"
+                        ? "bg-[#156d95] text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    } ${!userLocation ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <Locate className="w-3 h-3" />
+                    Cerca de mí
+                  </button>
+                  <button
+                    onClick={() => setFilterLocation("visible")}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                      filterLocation === "visible"
+                        ? "bg-[#156d95] text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    <Eye className="w-3 h-3" />
+                    Área visible
+                  </button>
+                </div>
+              </div>
+
+              {/* Selector de radio cuando está activo "cercanos" */}
+              {filterLocation === "cercanos" && userLocation && (
+                <div className="mb-3 p-2 bg-gray-50 rounded-lg">
+                  <label className="text-xs text-gray-600 block mb-1">
+                    Radio: <span className="font-semibold">{radioKm} km</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
+                    value={radioKm}
+                    onChange={(e) => setRadioKm(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#156d95]"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>1 km</span>
+                    <span>20 km</span>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500 pt-2 border-t border-gray-100">
+                {filteredDogs.length} perrito{filteredDogs.length !== 1 ? "s" : ""} encontrado{filteredDogs.length !== 1 ? "s" : ""}
+              </p>
+
+              {!userLocation && filterLocation !== "todos" && filterLocation !== "visible" && (
+                <p className="text-xs text-amber-600 mt-2">
+                  Activa la ubicación para usar este filtro
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Map */}
@@ -215,7 +404,8 @@ export const MapaPerritos = () => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <LocationMarker />
+        <LocationMarker onLocationFound={handleLocationFound} />
+        <MapEventHandler onBoundsChange={handleBoundsChange} />
         {filteredDogs.map((dog) => (
           <Marker
             key={dog.id}
@@ -254,6 +444,11 @@ export const MapaPerritos = () => {
                     {dog.reportadoPor}
                   </span>
                 </div>
+                {userLocation && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    A {calcularDistancia(userLocation.lat, userLocation.lng, dog.lat, dog.lng).toFixed(1)} km de ti
+                  </p>
+                )}
                 <button className="w-full mt-3 bg-[#156d95] text-white py-2 rounded-lg text-sm font-medium hover:bg-[#125a7d] transition-colors">
                   Ver detalles
                 </button>
@@ -264,7 +459,7 @@ export const MapaPerritos = () => {
       </MapContainer>
 
       {/* Legend */}
-      <div className="absolute bottom-8 right-4 z-[1000] bg-white rounded-xl shadow-lg p-4">
+      <div className="fixed bottom-8 right-4 z-40 bg-white rounded-xl shadow-lg p-4">
         <h4 className="font-semibold text-gray-800 mb-2 text-sm">Leyenda</h4>
         <div className="space-y-2">
           {[
