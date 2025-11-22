@@ -2,11 +2,11 @@
 Lost Dogs Finder - FastAPI Backend
 Main application with all endpoints.
 """
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from typing import List, Optional
+from typing import Optional
 import uuid
 
 from app.config import settings
