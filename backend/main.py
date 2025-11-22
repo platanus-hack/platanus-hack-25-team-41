@@ -28,9 +28,14 @@ from app.services.matching_service import matching_service
 def format_search_results(results):
     search_results = []
     for sighting, match_score, distance_km in results:
-        result = DogSightingSearchResult.from_orm_model(sighting)
-        result.match_score = match_score
-        result.distance_km = distance_km
+        # Create base response first
+        base_response = DogSightingResponse.from_orm_model(sighting)
+        # Then create search result with match_score
+        result = DogSightingSearchResult(
+            **base_response.model_dump(),
+            match_score=match_score,
+            distance_km=distance_km
+        )
         search_results.append(result)
     return search_results
 
