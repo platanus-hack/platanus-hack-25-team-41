@@ -6,7 +6,7 @@ const baseURL = process.env.NEXT_PUBLIC_API_URL || ""
 
 const api = axios.create({
   baseURL,
-  timeout: 10000,
+  timeout: 60000, // 60 segundos para permitir uploads de imágenes
   headers: {
     "Content-Type": "application/json",
   },

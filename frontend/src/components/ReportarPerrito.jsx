@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Camera, MapPin, Upload, Send, X, CheckCircle, AlertCircle, Navigation } from "lucide-react"
+import { Camera, MapPin, Upload, Send, X, CheckCircle, AlertCircle, Navigation, Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
+import { sightingsService } from "@/services/sightings"
 
 // Import MiniMapaSelector dynamically to avoid SSR issues with Leaflet
 const MiniMapaSelector = dynamic(
@@ -33,6 +34,7 @@ export const ReportarPerrito = () => {
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState(null)
   const [mostrarMapa, setMostrarMapa] = useState(false)
+  const [enviando, setEnviando] = useState(false)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -90,7 +92,17 @@ export const ReportarPerrito = () => {
     }
   }
 
-  const handleSubmit = (e) => {
+  // Convertir imagen a base64
+  const imageToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (!imagen) {
@@ -103,9 +115,43 @@ export const ReportarPerrito = () => {
       return
     }
 
-    // Simular envío
-    console.log("Reporte enviado:", { ...formData, imagen, ubicacion })
-    setEnviado(true)
+    setEnviando(true)
+    setError(null)
+
+    try {
+      // Convertir imagen a base64
+      const imageBase64 = await imageToBase64(imagen)
+
+      // Construir descripción combinando los campos del formulario
+      const descripcionParts = []
+      if (formData.tamano) descripcionParts.push(`Tamaño: ${formData.tamano}`)
+      if (formData.color) descripcionParts.push(`Color: ${formData.color}`)
+      if (formData.estado) descripcionParts.push(`Estado: ${formData.estado}`)
+      if (formData.notas) descripcionParts.push(formData.notas)
+
+      const description = descripcionParts.join(". ") || null
+
+      // Preparar datos para el API
+      const sightingData = {
+        images: [imageBase64],
+        description,
+        latitude: ubicacion.lat,
+        longitude: ubicacion.lng,
+      }
+
+      console.log("[ReportarPerrito] Enviando reporte:", sightingData)
+
+      const response = await sightingsService.createSighting(sightingData)
+
+      console.log("[ReportarPerrito] Respuesta del servidor:", response)
+      setEnviado(true)
+    } catch (err) {
+      console.error("[ReportarPerrito] Error al enviar reporte:", err)
+      console.error("[ReportarPerrito] Error response:", err.response?.data)
+      setError(err.response?.data?.message || "Error al enviar el reporte. Por favor, intenta de nuevo.")
+    } finally {
+      setEnviando(false)
+    }
   }
 
   const resetForm = () => {
@@ -393,10 +439,20 @@ export const ReportarPerrito = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
             type="submit"
-            className="w-full bg-[#156d95] text-white py-4 px-6 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-[#125a7d] transition-colors shadow-lg shadow-[#156d95]/20"
+            disabled={enviando}
+            className="w-full bg-[#156d95] text-white py-4 px-6 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-[#125a7d] transition-colors shadow-lg shadow-[#156d95]/20 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Send className="w-5 h-5" />
-            Enviar reporte
+            {enviando ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Enviando reporte...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                Enviar reporte
+              </>
+            )}
           </motion.button>
         </form>
       </div>
