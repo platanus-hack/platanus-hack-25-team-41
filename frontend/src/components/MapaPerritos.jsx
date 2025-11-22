@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet"
+import { useEffect, useState, useCallback, useRef } from "react"
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import { MapPin, Dog, Calendar, User, Locate, Eye, Filter, ChevronDown, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
+import { sightingsService } from "@/services/sightings"
 
 // Fix for default marker icons in Leaflet with Next.js
 const createCustomIcon = (color = "#156d95") => {
@@ -150,14 +151,28 @@ const calcularDistancia = (lat1, lng1, lat2, lng2) => {
 function LocationMarker({ onLocationFound }) {
   const [position, setPosition] = useState(null)
   const map = useMap()
+  const onLocationFoundRef = useRef(onLocationFound)
+  const hasLocated = useRef(false)
+
+  onLocationFoundRef.current = onLocationFound
 
   useEffect(() => {
-    map.locate().on("locationfound", (e) => {
+    if (hasLocated.current) return
+
+    const handleLocationFound = (e) => {
+      if (hasLocated.current) return
+      hasLocated.current = true
       setPosition(e.latlng)
-      onLocationFound(e.latlng)
+      onLocationFoundRef.current(e.latlng)
       map.flyTo(e.latlng, 14)
-    })
-  }, [map, onLocationFound])
+    }
+
+    map.locate().on("locationfound", handleLocationFound)
+
+    return () => {
+      map.off("locationfound", handleLocationFound)
+    }
+  }, [map])
 
   return position === null ? null : (
     <Marker
@@ -185,24 +200,13 @@ function LocationMarker({ onLocationFound }) {
   )
 }
 
-// Componente para detectar cambios en el mapa
-function MapEventHandler({ onBoundsChange }) {
-  const map = useMapEvents({
-    moveend: () => {
-      const bounds = map.getBounds()
-      onBoundsChange(bounds)
-    },
-    zoomend: () => {
-      const bounds = map.getBounds()
-      onBoundsChange(bounds)
-    },
-  })
+// Componente para capturar bounds manualmente
+function MapBoundsCapture({ mapRef }) {
+  const map = useMap()
 
   useEffect(() => {
-    // Obtener bounds inicial
-    const bounds = map.getBounds()
-    onBoundsChange(bounds)
-  }, [map, onBoundsChange])
+    mapRef.current = map
+  }, [map, mapRef])
 
   return null
 }
@@ -212,20 +216,92 @@ export const MapaPerritos = () => {
   const [filterStatus, setFilterStatus] = useState("todos")
   const [filterLocation, setFilterLocation] = useState("todos") // "todos", "cercanos", "visible"
   const [userLocation, setUserLocation] = useState(null)
-  const [mapBounds, setMapBounds] = useState(null)
+  const [capturedBounds, setCapturedBounds] = useState(null) // Bounds capturados manualmente
   const [radioKm, setRadioKm] = useState(5) // Radio en km para filtro "cercanos"
   const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const mapRef = useRef(null)
+
+  // Estado para datos de la API
+  const [sightings, setSightings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // Cargar avistamientos desde la API
+  useEffect(() => {
+    const fetchSightings = async () => {
+      console.log("[MapaPerritos] Iniciando carga de avistamientos...")
+      try {
+        setLoading(true)
+
+        // TODO: Remover este delay - solo para desarrollo
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+
+        console.log("[MapaPerritos] Llamando a sightingsService.getMapSightings()")
+
+        const data = await sightingsService.getMapSightings()
+        console.log("[MapaPerritos] Respuesta recibida:", data)
+
+        if (!data || !data.sightings) {
+          console.error("[MapaPerritos] Respuesta inválida - no tiene propiedad 'sightings':", data)
+          throw new Error("Respuesta inválida de la API")
+        }
+
+        console.log("[MapaPerritos] Total de sightings:", data.sightings.length)
+
+        // Transformar datos de la API al formato del componente
+        const transformedSightings = data.sightings.map((s, index) => {
+          console.log(`[MapaPerritos] Transformando sighting ${index}:`, s)
+          return {
+            id: s.id,
+            lat: s.latitude,
+            lng: s.longitude,
+            nombre: s.description?.split(",")[0] || "Perrito avistado",
+            descripcion: s.description || "",
+            imagen: s.photo,
+            estado: "pendiente", // Default, ajustar si la API lo incluye
+            fecha: new Date().toISOString().split("T")[0],
+            reportadoPor: "Usuario",
+          }
+        })
+
+        console.log("[MapaPerritos] Datos transformados:", transformedSightings)
+        setSightings(transformedSightings)
+        setError(null)
+        console.log("[MapaPerritos] Carga completada exitosamente")
+      } catch (err) {
+        console.error("[MapaPerritos] Error en fetchSightings:", err)
+        console.error("[MapaPerritos] Error message:", err.message)
+        console.error("[MapaPerritos] Error response:", err.response?.data)
+        console.error("[MapaPerritos] Error status:", err.response?.status)
+        setError("Error al cargar los avistamientos")
+        // Usar datos de ejemplo como fallback
+        console.log("[MapaPerritos] Usando datos de ejemplo como fallback")
+        setSightings(sampleDogs)
+      } finally {
+        setLoading(false)
+        console.log("[MapaPerritos] Loading terminado")
+      }
+    }
+
+    fetchSightings()
+  }, [])
 
   const handleLocationFound = useCallback((latlng) => {
     setUserLocation(latlng)
   }, [])
 
-  const handleBoundsChange = useCallback((bounds) => {
-    setMapBounds(bounds)
+  // Capturar bounds del área visible actual
+  const handleCaptureVisibleArea = useCallback(() => {
+    if (mapRef.current) {
+      const bounds = mapRef.current.getBounds()
+      setCapturedBounds(bounds)
+      setFilterLocation("visible")
+    }
   }, [])
 
-  // Filtrar perros
-  const filteredDogs = sampleDogs.filter((dog) => {
+  // Filtrar perros (usa sightings de la API, sampleDogs solo como fallback en error)
+  const dogsData = error ? sampleDogs : sightings
+  const filteredDogs = dogsData.filter((dog) => {
     // Filtro por estado
     if (filterStatus !== "todos" && dog.estado !== filterStatus) {
       return false
@@ -239,8 +315,8 @@ export const MapaPerritos = () => {
       }
     }
 
-    if (filterLocation === "visible" && mapBounds) {
-      if (!mapBounds.contains([dog.lat, dog.lng])) {
+    if (filterLocation === "visible" && capturedBounds) {
+      if (!capturedBounds.contains([dog.lat, dog.lng])) {
         return false
       }
     }
@@ -250,6 +326,42 @@ export const MapaPerritos = () => {
 
   return (
     <div className="relative w-full h-screen pt-20">
+      {/* Loading overlay */}
+      {loading && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/70 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-4">
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <Dog className="w-10 h-10 text-[#156d95]" />
+              <div className="absolute inset-0">
+                <svg className="w-16 h-16 animate-spin" viewBox="0 0 64 64">
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    fill="none"
+                    stroke="#156d95"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray="44 132"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="font-medium text-gray-800">Cargando avistamientos</p>
+              <p className="text-sm text-gray-500">Buscando perritos en el mapa...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error indicator */}
+      {error && !loading && (
+        <div className="fixed top-24 right-4 z-50 bg-red-50 border border-red-200 rounded-lg shadow-lg px-4 py-2">
+          <span className="text-sm text-red-600">{error}</span>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="fixed top-22 left-14 md:left-14 z-40">
         {/* Botón para abrir/cerrar filtros */}
@@ -345,7 +457,7 @@ export const MapaPerritos = () => {
                     Cerca de mí
                   </button>
                   <button
-                    onClick={() => setFilterLocation("visible")}
+                    onClick={handleCaptureVisibleArea}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
                       filterLocation === "visible"
                         ? "bg-[#156d95] text-white"
@@ -379,6 +491,22 @@ export const MapaPerritos = () => {
                 </div>
               )}
 
+              {/* Botón para actualizar área visible */}
+              {filterLocation === "visible" && (
+                <div className="mb-3">
+                  <button
+                    onClick={handleCaptureVisibleArea}
+                    className="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Eye className="w-3 h-3" />
+                    Actualizar área visible
+                  </button>
+                  <p className="text-xs text-gray-400 mt-1 text-center">
+                    Mueve el mapa y presiona para filtrar
+                  </p>
+                </div>
+              )}
+
               <p className="text-xs text-gray-500 pt-2 border-t border-gray-100">
                 {filteredDogs.length} perrito{filteredDogs.length !== 1 ? "s" : ""} encontrado{filteredDogs.length !== 1 ? "s" : ""}
               </p>
@@ -405,7 +533,7 @@ export const MapaPerritos = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <LocationMarker onLocationFound={handleLocationFound} />
-        <MapEventHandler onBoundsChange={handleBoundsChange} />
+        <MapBoundsCapture mapRef={mapRef} />
         {filteredDogs.map((dog) => (
           <Marker
             key={dog.id}
