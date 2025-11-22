@@ -46,7 +46,7 @@ def format_search_results(results):
 
 app = FastAPI(
     title="Lost Dogs Finder API",
-    description="API para reportar y buscar perros perdidos usando IA",
+    description="API para reportar y buscar perros perdidos usando IAAA",
     version="1.0.0",
     docs_url="/docs" if settings.debug else None,
 )
