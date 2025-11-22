@@ -8,17 +8,15 @@ from uuid import UUID
 
 
 class DogSightingCreate(BaseModel):
-    """Schema for creating a new dog sighting."""
-    
-    # Images will be uploaded separately via multipart/form-data
-    # This is for the other fields
+    """Schema for creating a new dog sighting with base64 images."""
+
+    images: List[str] = Field(..., min_length=1, max_length=3, description="1-3 base64-encoded images")
     description: Optional[str] = Field(None, description="User description of the dog")
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     location_address: Optional[str] = None
     neighborhood: Optional[str] = None
-    
-    # Contact info (optional)
+
     contact_name: Optional[str] = Field(None, max_length=255)
     contact_phone: Optional[str] = Field(None, max_length=20)
     contact_email: Optional[str] = Field(None, max_length=255)
