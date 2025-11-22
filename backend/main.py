@@ -53,7 +53,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup."""
-    print("🚀 Starting Lost Dogs Finder API...")
+    print("🚀 Starting Lost Dogs Finder API....")
     print(f"📍 Environment: {settings.environment}")
     print(f"🗄️  Database: {settings.database_url.split('@')[-1]}")  # Hide credentials
     print(f"☁️  GCS Bucket: {settings.gcs_bucket_name}")
