@@ -12,14 +12,13 @@ import uuid
 from app.config import settings
 from app.database import get_db, init_db
 from app.models.dog_sighting import DogSighting
-from app.models.reunion_report import ReunionReport
 from app.schemas.dog_sighting import (
     DogSightingCreate,
     DogSightingResponse,
     DogSightingSearchResult,
     DogSightingListResponse,
 )
-from app.schemas.search import SearchRequest, SearchResponse, ReunionReportCreate, ReunionReportResponse
+from app.schemas.search import SearchRequest, SearchResponse
 from app.services.storage_service import storage_service
 from app.services.llm_service import dog_description, extract_search_attributes
 from app.services.matching_service import matching_service
@@ -419,7 +418,7 @@ async def create_reunion_report(
     db: Session = Depends(get_db)
 ):
     """
-    Report that you found your dog through the platform.
+    Report that you found your dog through the platform.dsad
 
     - Provide the ID of the sighting that matches your dog
     - Provide a base64-encoded verification photo of you with the dog
