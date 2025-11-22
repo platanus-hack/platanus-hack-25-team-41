@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata = {
-  title: "DogFinder - Ayuda a perritos callejeros",
-  description: "Plataforma para reportar y ayudar a perros callejeros a encontrar un hogar. Conectamos rescatistas, refugios y familias adoptivas.",
+  title: "DogFinder - Catastro de perros callejeros y búsqueda de mascotas",
+  description: "Plataforma colaborativa para generar un catastro geolocalizado de perros callejeros y ayudar a encontrar mascotas perdidas. Reporta avistamientos y conecta con refugios.",
   icons: {
     icon: "/icon.svg",
   },

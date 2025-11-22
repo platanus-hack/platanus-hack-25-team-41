@@ -2,19 +2,20 @@
 
 import { motion } from "framer-motion"
 import { ArrowUpRight } from "lucide-react"
+import Link from "next/link"
 
-export const ProductTeaserCard = ({
-  dailyVolume = "12,847",
-  dailyVolumeLabel = "PERRITOS ENCONTRADOS",
-  headline = "Ayuda a los perritos callejeros a encontrar un hogar",
-  subheadline = "Sube fotos geolocalizadas de perros callejeros y ayuda a conectarlos con refugios, rescatistas y familias con ánimos de ayudar. Juntos podemos darles una segunda oportunidad.",
-  description = "Una comunidad comprometida con el bienestar animal. Reporta avistamientos, sigue el estado de los perritos y colabora con refugios locales para salvar más vidas.",
+export const HeroCatastro = ({
+  dailyVolume = "2,450",
+  dailyVolumeLabel = "PERRITOS REGISTRADOS",
+  headline = "Catastro geolocalizado de perros callejeros",
+  subheadline = "Ayúdanos a mapear y registrar perros abandonados en tu zona. Con tu reporte, refugios y rescatistas pueden actuar más rápido. También puedes buscar a tu mascota perdida.",
+  description = "Una plataforma colaborativa para generar datos geolocalizados de perros callejeros y ayudar a reunir mascotas perdidas con sus familias.",
   videoSrc = "https://cdn.sanity.io/files/1t8iva7t/production/a2cbbed7c998cf93e7ecb6dae75bab42b13139c2.mp4",
   posterSrc = "/images/design-mode/9ad78a5534a46e77bafe116ce1c38172c60dc21a-1069x1068.png",
-  primaryButtonText = "Reportar avistamiento",
-  primaryButtonHref = "",
-  secondaryButtonText = "Ver mapa",
-  secondaryButtonHref = "",
+  primaryButtonText = "Reportar perrito",
+  primaryButtonHref = "/reportar",
+  secondaryButtonText = "Buscar mi mascota",
+  secondaryButtonHref = "/buscar",
 } = {}) => {
   return (
     <section className="w-full px-8 pt-32 pb-16">
@@ -81,28 +82,44 @@ export const ProductTeaserCard = ({
               {subheadline}
             </p>
 
-            <ul className="flex gap-1.5 flex-wrap mt-10">
-              <li>
-                <a
-                  href={primaryButtonHref}
-                  onClick={(e) => e.preventDefault()}
-                  className="block cursor-pointer text-white bg-[#0988f0] rounded-full px-[18px] py-[15px] text-base leading-4 whitespace-nowrap transition-all duration-150 ease-[cubic-bezier(0.455,0.03,0.515,0.955)] hover:rounded-2xl"
-                  style={{
-                    background: "#156d95",
-                  }}
+            <ul className="flex gap-3 flex-wrap mt-10">
+              <motion.li
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.8, ease: [0.645, 0.045, 0.355, 1] }}
+              >
+                <motion.div
+                  whileHover={{ scale: 1.05, borderRadius: "16px" }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  {primaryButtonText}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={secondaryButtonHref}
-                  onClick={(e) => e.preventDefault()}
-                  className="block cursor-pointer text-[#202020] border border-[#202020] rounded-full px-[18px] py-[15px] text-base leading-4 whitespace-nowrap transition-all duration-150 ease-[cubic-bezier(0.455,0.03,0.515,0.955)] hover:rounded-2xl"
+                  <Link
+                    href={primaryButtonHref}
+                    className="block cursor-pointer text-white bg-[#156d95] rounded-full px-[18px] py-[15px] text-base leading-4 whitespace-nowrap"
+                  >
+                    {primaryButtonText}
+                  </Link>
+                </motion.div>
+              </motion.li>
+              <motion.li
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.9, ease: [0.645, 0.045, 0.355, 1] }}
+              >
+                <motion.div
+                  whileHover={{ scale: 1.05, borderRadius: "16px", backgroundColor: "#202020", color: "#ffffff" }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="rounded-full"
                 >
-                  {secondaryButtonText}
-                </a>
-              </li>
+                  <Link
+                    href={secondaryButtonHref}
+                    className="block cursor-pointer text-[#202020] hover:text-white border border-[#202020] rounded-full px-[18px] py-[15px] text-base leading-4 whitespace-nowrap"
+                  >
+                    {secondaryButtonText}
+                  </Link>
+                </motion.div>
+              </motion.li>
             </ul>
           </motion.div>
 
