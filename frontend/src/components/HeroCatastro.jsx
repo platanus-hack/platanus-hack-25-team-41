@@ -14,11 +14,10 @@ const dogImages = [
 ]
 
 export const HeroCatastro = ({
-  dailyVolume = "2,450",
   dailyVolumeLabel = "PERRITOS REGISTRADOS",
+  dailyVolumeHref = "/map",
   headline = "Catastro geolocalizado de perros callejeros",
   subheadline = "Ayúdanos a mapear y registrar perros callejeros en tu zona. Con tu reporte, las personas que buscan a su mascota perdida podrán encontrarla más fácil.",
-  description = "Una plataforma colaborativa para generar datos geolocalizados de perros callejeros y ayudar a reunir mascotas perdidas con sus familias.",
   primaryButtonText = "Reportar perrito",
   primaryButtonHref = "/reportar",
   secondaryButtonText = "Buscar mi mascota",
@@ -33,9 +32,9 @@ export const HeroCatastro = ({
     return () => clearInterval(interval)
   }, [])
   return (
-    <section className="w-full px-8 pt-32 pb-16">
+    <section className="w-full px-4 sm:px-8 pt-24 sm:pt-32 pb-12 sm:pb-16">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-12 gap-2">
+        <div className="grid grid-cols-12 gap-2 sm:gap-2">
           <motion.div
             initial={{
               opacity: 0,
@@ -47,11 +46,10 @@ export const HeroCatastro = ({
               duration: 0.8,
               ease: [0.645, 0.045, 0.355, 1],
             }}
-            className="col-span-12 lg:col-span-6 bg-[#e9e9e9] rounded-[40px] p-12 lg:p-16 flex flex-col justify-end aspect-square overflow-hidden"
+            className="col-span-12 lg:col-span-6 bg-[#e9e9e9] rounded-[24px] sm:rounded-[40px] p-6 sm:p-12 lg:p-16 flex flex-col justify-end min-h-[400px] sm:min-h-[500px] lg:aspect-square overflow-hidden"
           >
             <a
-              href={primaryButtonHref}
-              onClick={(e) => e.preventDefault()}
+              href={dailyVolumeHref}
               className="flex flex-col gap-1 text-[#9a9a9a]"
             >
               <motion.span
@@ -79,7 +77,7 @@ export const HeroCatastro = ({
             </a>
 
             <h1
-              className="text-[56px] leading-[60px] tracking-tight text-[#202020] max-w-[520px] mb-6"
+              className="text-[28px] sm:text-[40px] lg:text-[56px] leading-[32px] sm:leading-[44px] lg:leading-[60px] tracking-tight text-[#202020] max-w-[520px] mb-4 sm:mb-6"
               style={{
                 fontWeight: "500",
                 fontFamily: "var(--font-figtree), Figtree",
@@ -89,7 +87,7 @@ export const HeroCatastro = ({
             </h1>
 
             <p
-              className="text-lg leading-7 text-[#404040] max-w-[520px] mb-6"
+              className="text-base sm:text-lg leading-6 sm:leading-7 text-[#404040] max-w-[520px] mb-4 sm:mb-6"
               style={{
                 fontFamily: "var(--font-figtree), Figtree",
               }}
@@ -97,7 +95,7 @@ export const HeroCatastro = ({
               {subheadline}
             </p>
 
-            <ul className="flex gap-3 flex-wrap mt-10">
+            <ul className="flex gap-2 sm:gap-3 flex-wrap mt-6 sm:mt-10">
               <motion.li
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -110,7 +108,7 @@ export const HeroCatastro = ({
                 >
                   <Link
                     href={primaryButtonHref}
-                    className="block cursor-pointer text-white bg-[#156d95] rounded-full px-[18px] py-[15px] text-base leading-4 whitespace-nowrap"
+                    className="block cursor-pointer text-white bg-[#156d95] rounded-full px-4 sm:px-[18px] py-3 sm:py-[15px] text-sm sm:text-base leading-4 whitespace-nowrap"
                   >
                     {primaryButtonText}
                   </Link>
@@ -129,7 +127,7 @@ export const HeroCatastro = ({
                 >
                   <Link
                     href={secondaryButtonHref}
-                    className="block cursor-pointer text-[#202020] hover:text-white border border-[#202020] rounded-full px-[18px] py-[15px] text-base leading-4 whitespace-nowrap"
+                    className="block cursor-pointer text-[#202020] hover:text-white border border-[#202020] rounded-full px-4 sm:px-[18px] py-3 sm:py-[15px] text-sm sm:text-base leading-4 whitespace-nowrap"
                   >
                     {secondaryButtonText}
                   </Link>
@@ -150,7 +148,7 @@ export const HeroCatastro = ({
               ease: [0.645, 0.045, 0.355, 1],
               delay: 0.2,
             }}
-            className="col-span-12 lg:col-span-6 bg-gray-100 rounded-[40px] flex justify-center items-center aspect-square overflow-hidden relative"
+            className="col-span-12 lg:col-span-6 bg-gray-100 rounded-[24px] sm:rounded-[40px] flex justify-center items-center aspect-[4/3] sm:aspect-square overflow-hidden relative mt-2 lg:mt-0"
           >
             <AnimatePresence mode="wait">
               <motion.img

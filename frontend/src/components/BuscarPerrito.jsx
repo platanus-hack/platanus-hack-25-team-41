@@ -45,7 +45,18 @@ export const BuscarPerrito = () => {
   const [favoritos, setFavoritos] = useState([])
   const [mapaExpandido, setMapaExpandido] = useState(false)
   const [mostrarContacto, setMostrarContacto] = useState(false)
+  const [toast, setToast] = useState({ show: false, message: "", type: "error" })
   const fileInputRef = useRef(null)
+
+  // Auto-hide toast after 5 seconds
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => {
+        setToast(prev => ({ ...prev, show: false }))
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast.show])
 
   // Obtener ubicación del usuario al montar el componente
   useEffect(() => {
@@ -185,7 +196,17 @@ export const BuscarPerrito = () => {
       setResultados(resultadosTransformados)
     } catch (err) {
       console.error("[BuscarPerrito] Error en búsqueda:", err)
-      setError("Error al buscar. Por favor, intenta de nuevo.")
+
+      // Error 400 = No se detectó un perro en la imagen
+      if (err.response?.status === 400) {
+        setToast({
+          show: true,
+          message: "No se detectó ningún perro en la imagen. Por favor, intenta con otra foto donde el perro sea más visible.",
+          type: "error"
+        })
+      } else {
+        setError("Error al buscar. Por favor, intenta de nuevo.")
+      }
     } finally {
       setBuscando(false)
     }
@@ -689,6 +710,29 @@ export const BuscarPerrito = () => {
                   />
                 </div>
               </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Toast notification */}
+        <AnimatePresence>
+          {toast.show && (
+            <motion.div
+              initial={{ opacity: 0, y: -50, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: -50, x: "-50%" }}
+              className="fixed top-24 left-1/2 z-50 max-w-md w-[90%] bg-red-50 border border-red-200 rounded-xl p-4 shadow-lg flex items-start gap-3"
+            >
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-red-700 text-sm">{toast.message}</p>
+              </div>
+              <button
+                onClick={() => setToast(prev => ({ ...prev, show: false }))}
+                className="text-red-400 hover:text-red-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

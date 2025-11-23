@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { Camera, MapPin, Upload, Send, X, CheckCircle, AlertCircle, Navigation, Loader2, Phone } from "lucide-react"
 import dynamic from "next/dynamic"
 import { sightingsService } from "@/services/sightings"
@@ -40,7 +40,18 @@ export const ReportarPerrito = () => {
   const [enviando, setEnviando] = useState(false)
   const [draftId, setDraftId] = useState(null)
   const [cargandoDraft, setCargandoDraft] = useState(false)
+  const [toast, setToast] = useState({ show: false, message: "", type: "error" })
   const fileInputRef = useRef(null)
+
+  // Auto-hide toast after 5 seconds
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => {
+        setToast(prev => ({ ...prev, show: false }))
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast.show])
 
   useEffect(() => {
     obtenerUbicacion()
@@ -262,7 +273,17 @@ export const ReportarPerrito = () => {
     } catch (err) {
       console.error("[ReportarPerrito] Error al enviar reporte:", err)
       console.error("[ReportarPerrito] Error response:", err.response?.data)
-      setError(err.response?.data?.message || "Error al enviar el reporte. Por favor, intenta de nuevo.")
+
+      // Error 400 = No se detectó un perro en la imagen
+      if (err.response?.status === 400) {
+        setToast({
+          show: true,
+          message: "No se detectó ningún perro en la imagen. Por favor, intenta con otra foto donde el perro sea más visible.",
+          type: "error"
+        })
+      } else {
+        setError(err.response?.data?.message || "Error al enviar el reporte. Por favor, intenta de nuevo.")
+      }
     } finally {
       setEnviando(false)
     }
@@ -618,7 +639,7 @@ export const ReportarPerrito = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Número de celular *
                   </label>
-                  <div className="relative">
+                  <div className="relative px-[1.8px]">
                     <input
                       type="tel"
                       value={telefono}
@@ -663,6 +684,29 @@ export const ReportarPerrito = () => {
           </motion.button>
         </form>
       </div>
+
+      {/* Toast notification */}
+      <AnimatePresence>
+        {toast.show && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -50, x: "-50%" }}
+            className="fixed top-24 left-1/2 z-50 max-w-md w-[90%] bg-red-50 border border-red-200 rounded-xl p-4 shadow-lg flex items-start gap-3"
+          >
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-red-700 text-sm">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => setToast(prev => ({ ...prev, show: false }))}
+              className="text-red-400 hover:text-red-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
