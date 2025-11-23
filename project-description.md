@@ -1,4 +1,4 @@
-# BusCachorros
+# BusCachorros 🔎🐕
 
 Plataforma colaborativa para reportar y buscar perros callejeros mediante reconocimiento de imagen y geolocalización.
 
@@ -19,11 +19,11 @@ Creamos **BusCachorros**, una plataforma que democratiza la búsqueda de mascota
 
 ### Funcionalidades principales:
 
-- **Reportar avistamientos**: Cualquier persona puede fotografiar y geolocalizar un perro callejero en segundos desde su celular.
-- **Buscar mascotas perdidas**: Los dueños suben una foto de su mascota y el sistema busca coincidencias automáticamente entre todos los avistamientos.
-- **Visualizar en mapa**: Todos los avistamientos se muestran en un mapa interactivo con filtros por ubicación y tiempo.
-- **Conectar personas**: Los reportantes pueden dejar su contacto para ser notificados si el perro que vieron resulta ser la mascota de alguien.
-- **Avisar avistamiento por mensajeria estandar**: Los usuarios pueden contactar un bot en telegram para reportar un avistamiento, facilitando el uso y adopción.
+- **Reportar avistamientos**: Cualquier persona puede fotografiar y geolocalizar un perro callejero en segundos desde su celular
+- **Buscar mascotas perdidas**: Los dueños suben una foto de su mascota y el sistema busca coincidencias automáticamente entre todos los avistamientos
+- **Visualizar en mapa**: Todos los avistamientos se muestran en un mapa interactivo con filtros por ubicación y tiempo
+- **Conectar personas**: Los reportantes pueden dejar su contacto para ser notificados si el perro que vieron resulta ser la mascota de alguien
+- **Bot de Telegram**: Reportar avistamientos mediante chat conversacional, facilitando la adopción y uso desde plataformas de mensajería
 
 ## 3. Solución Técnica
 
@@ -31,7 +31,7 @@ Creamos **BusCachorros**, una plataforma que democratiza la búsqueda de mascota
 - Interfaz responsive optimizada para uso móvil (mobile-first)
 - Mapas interactivos con React Leaflet y OpenStreetMap
 - Geolocalización del navegador en tiempo real
-- Carga de imágenes con preview y validación
+- Carga de imágenes con preview y validaciónUpdate front
 - Animaciones fluidas con Framer Motion
 - Diseño con Tailwind CSS
 
@@ -44,9 +44,16 @@ Creamos **BusCachorros**, una plataforma que democratiza la búsqueda de mascota
 
 ### Inteligencia Artificial
 
-**Arquitectura híbrida** que combina búsqueda semántica por atributos y similitud visual mediante embeddings:
+Nuestro sistema no solo "llama a una API de IA" - implementamos una **arquitectura híbrida** que combina:
+- Análisis visual de imágenes (¿se parecen los perros?)
+- Análisis semántico de atributos (¿tienen las mismas características?)
+- Ranking inteligente que fusiona ambos resultados
 
-#### Componentes principales:
+Esto significa que incluso con fotos de mala calidad o descripciones parciales, el sistema encuentra coincidencias.
+
+#### Detalles técnicos del algoritmo:
+
+**Componentes principales:**
 
 - **Validación con Gemini 2.5 Flash**: Detección automática de perros en imágenes subidas con umbral de confianza > 0.7 (responde 400 si no detecta un perro o la confianza es insuficiente)
 
@@ -98,7 +105,7 @@ Creamos **BusCachorros**, una plataforma que democratiza la búsqueda de mascota
 ### Infraestructura
 - Frontend desplegado en Google Cloud Run
 - Backend desplegado en Google Cloud Run
-- Bot de telegram desplegado en Google Cloud Run
+- Bot de Telegram desplegado en Google Cloud Run
 - Base de datos PostgreSQL en Cloud SQL con pgvector
 - Almacenamiento de imágenes en Cloud Storage
 - CI/CD con GitHub Actions
@@ -107,21 +114,42 @@ Creamos **BusCachorros**, una plataforma que democratiza la búsqueda de mascota
 - **Área de probabilidad**: Círculos concéntricos en el mapa que estiman dónde podría estar el perro basado en el tiempo transcurrido desde el avistamiento
 - **Sistema de contacto**: Conexión directa entre quien reporta y quien busca (llamada o WhatsApp)
 - **Filtros inteligentes**: Por radio de distancia, área visible del mapa, y más
-- **Avistamiento por mensajeria estandar**: Relleno de formulario de avistamiento mediante mensajes de telegram
+- **Reportes por Telegram**: Flujo conversacional para crear avistamientos mediante chat, compartiendo ubicación y fotos
 
-## 4. Resultados
+## 4. Resultados del Hackathon
 
-Durante el hackathon logramos construir:
+En 48 horas de desarrollo intensivo construimos un MVP completamente funcional:
 
-- Plataforma web funcional con flujo completo de reporte y búsqueda
-- Sistema de matching por imagen con porcentaje de similitud visual
-- Mapa interactivo con todos los avistamientos y filtros por ubicación
-- Algoritmo de área de probabilidad basado en tiempo transcurrido
-- Sistema de contacto entre reportantes y buscadores
-- Validación de imágenes con IA (solo acepta fotos de perros)
-- Interfaz responsive optimizada para uso en terreno desde el celular
+**Funcionalidades implementadas:**
+- ✅ Sistema end-to-end: desde reportar hasta encontrar con un match
+- ✅ Pipeline completo de IA: validación, extracción de atributos, embeddings, y búsqueda híbrida
+- ✅ Mapa interactivo con círculos de probabilidad basados en tiempo/distancia
+- ✅ Bot de Telegram para reportes rápidos desde mensajería
+- ✅ Infraestructura productiva en Google Cloud (frontend, backend, bot, base de datos)
 
-## 5. Equipo
+**Logros técnicos destacados:**
+- Algoritmo de matching híbrido (Jaccard + Cosine Similarity + RRF)
+- Validación automática de imágenes (rechaza no-perros)
+- Sistema de embeddings visuales de 1408 dimensiones
+- Interfaz mobile-first optimizada para uso en terreno
+- Integración de múltiples servicios de Google Cloud (Vertex AI, Cloud Run, Cloud SQL, GCS)
+
+## 5. Impacto y Escalabilidad
+
+**Impacto potencial:**
+- Sistema escalable para toda Latinoamérica (problema regional con millones de perros callejeros)
+- Reducción significativa en tiempo de búsqueda vs. métodos tradicionales (carteles, grupos de WhatsApp)
+- Democratiza el acceso a tecnología de búsqueda por IA para cualquier persona con un celular
+- Potencial colaboración con fundaciones de rescate animal y municipalidades
+
+**Próximos pasos:**
+- Integración con organizaciones de protección animal y municipalidades
+- Sistema de notificaciones push para alertar matches en tiempo real
+- App móvil nativa para mejor captura de ubicación y fotos
+- Expansión del modelo de IA con fine-tuning en razas locales, estimaciones de ubicación, etc
+- Funcionalidad de "perro perdido" vs "perro encontrado" para matching bidireccional
+
+## 6. Equipo
 
 - Manuel Cifuentes ([@mecifuentes](https://github.com/mecifuentes))
 - Eugenio Herrera ([@ouhenio](https://github.com/ouhenio))
