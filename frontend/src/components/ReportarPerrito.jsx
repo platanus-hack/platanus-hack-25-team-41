@@ -183,8 +183,8 @@ export const ReportarPerrito = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-4">¡Reporte enviado!</h2>
           <p className="text-gray-600 mb-8">
-            Gracias por reportar este perrito. Los rescatistas cercanos serán notificados
-            y podrán ayudar lo más pronto posible.
+            Gracias por reportar este perrito. Tu avistamiento ayudará a quienes
+            buscan a su mascota perdida a encontrarla.
           </p>
           <div className="space-y-3">
             <button

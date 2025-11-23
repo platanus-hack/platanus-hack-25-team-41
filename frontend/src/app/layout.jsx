@@ -20,11 +20,11 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "BusCachorros - Catastro de perros callejeros y búsqueda de mascotas",
-  description: "Plataforma colaborativa para generar un catastro geolocalizado de perros callejeros y ayudar a encontrar mascotas perdidas. Reporta avistamientos y conecta con refugios.",
+  description: "Plataforma colaborativa para generar un catastro geolocalizado de perros callejeros y ayudar a encontrar mascotas perdidas. Reporta avistamientos en tu zona.",
   metadataBase: new URL("https://frontend-849537710972.us-central1.run.app"),
   openGraph: {
     title: "BusCachorros - Catastro de perros callejeros y búsqueda de mascotas",
-    description: "Plataforma colaborativa para generar un catastro geolocalizado de perros callejeros y ayudar a encontrar mascotas perdidas. Reporta avistamientos y conecta con refugios.",
+    description: "Plataforma colaborativa para generar un catastro geolocalizado de perros callejeros y ayudar a encontrar mascotas perdidas. Reporta avistamientos en tu zona.",
     url: "https://frontend-849537710972.us-central1.run.app",
     siteName: "BusCachorros",
     images: [
