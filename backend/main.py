@@ -22,6 +22,7 @@ from app.schemas.search import SearchRequest, SearchResponse
 from app.services.storage_service import storage_service
 from app.services.llm_service import dog_description, extract_search_attributes
 from app.services.matching_service import matching_service
+from app.services.embedding_service import embedding_service
 from app.utils.base64_handler import convert_base64_to_upload_files
 
 
@@ -150,10 +151,18 @@ async def create_sighting(
         attributes = llm_result.get("atributos", [])
         print(f"✅ Extracted attributes: {attributes}")
 
+        print("🔢 Generating image embedding...")
+        image_embedding = await embedding_service.generate_embedding(image_urls[0])
+        if image_embedding:
+            print(f"✅ Embedding generated: {len(image_embedding)} dimensions")
+        else:
+            print("⚠️  Failed to generate embedding, continuing without it")
+
         new_sighting = DogSighting(
             image_urls=image_urls,
             user_description=sighting.description,
             attributes=attributes,
+            image_embedding=image_embedding,
             latitude=sighting.latitude,
             longitude=sighting.longitude,
             location_address=sighting.location_address,
@@ -216,9 +225,10 @@ async def search_sightings(
 
         print(f"🔍 Search attributes: {search_attrs}")
 
-        results = matching_service.find_matches(
+        results = matching_service.find_matches_with_vectors(
             db=db,
             search_attributes=search_attrs,
+            search_embedding=None,
             latitude=latitude,
             longitude=longitude,
             radius_km=radius,
@@ -286,9 +296,17 @@ async def search_sightings_with_image(
 
         print(f"🔍 Search attributes: {search_attrs}")
 
-        results = matching_service.find_matches(
+        search_embedding = None
+        if images:
+            print("🔢 Generating search embedding from image...")
+            search_embedding = await embedding_service.generate_embedding(search_request.images[0])
+            if search_embedding:
+                print(f"✅ Search embedding generated")
+
+        results = matching_service.find_matches_with_vectors(
             db=db,
             search_attributes=search_attrs,
+            search_embedding=search_embedding,
             latitude=search_request.latitude,
             longitude=search_request.longitude,
             radius_km=search_request.radius,

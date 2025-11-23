@@ -3,6 +3,7 @@ Dog Sighting model - represents a found dog report.
 """
 from sqlalchemy import Column, String, Text, ARRAY, Float, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from pgvector.sqlalchemy import Vector
 import uuid
 
 from app.database import Base
@@ -26,7 +27,10 @@ class DogSighting(Base):
     # Attributes extracted by LLM
     # Example: ["labrador", "amarillo", "grande", "adulto", "collar_rojo"]
     attributes = Column(JSONB, nullable=False)
-    
+
+    # Image embedding for similarity search (1408 dimensions for Vertex AI)
+    image_embedding = Column(Vector(1408), nullable=True)
+
     # Location
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)

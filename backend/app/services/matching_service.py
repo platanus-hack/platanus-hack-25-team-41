@@ -1,6 +1,6 @@
 """
-Matching service for finding similar dogs based on attributes.
-Uses Jaccard similarity and distance-based filtering.
+Matching service for finding similar dogs based on attributes and image similarity.
+Uses Jaccard similarity, vector similarity, and distance-based filtering.
 """
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
@@ -137,7 +137,110 @@ class MatchingService:
         
         # Return top N results
         return results[:limit]
-    
+
+    def find_matches_with_vectors(
+        self,
+        db: Session,
+        search_attributes: Optional[List[str]] = None,
+        search_embedding: Optional[List[float]] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        radius_km: Optional[int] = None,
+        limit: int = 20,
+        attribute_weight: float = 0.4,
+        vector_weight: float = 0.6
+    ) -> List[Tuple[DogSighting, float, Optional[float]]]:
+        """
+        Find matching dogs using combined attribute + vector similarity.
+
+        Args:
+            db: Database session
+            search_attributes: Optional list of attributes
+            search_embedding: Optional image embedding vector
+            latitude: Optional search latitude
+            longitude: Optional search longitude
+            radius_km: Optional radius for location filtering
+            limit: Maximum results to return
+            attribute_weight: Weight for attribute matching (0-1)
+            vector_weight: Weight for vector similarity (0-1)
+
+        Returns:
+            List of tuples: (DogSighting, combined_score, distance_km)
+            Sorted by combined score descending
+        """
+        if radius_km is None:
+            radius_km = settings.search_radius_km
+
+        query = db.query(DogSighting).filter(DogSighting.status == "active")
+
+        if search_embedding:
+            query = query.filter(DogSighting.image_embedding.isnot(None))
+
+        candidates = query.all()
+
+        results = []
+        search_attr_set = set(search_attributes) if search_attributes else set()
+
+        for candidate in candidates:
+            attribute_score = 0.0
+            vector_score = 0.0
+
+            if search_attributes and candidate.attributes:
+                candidate_set = set(candidate.attributes)
+                attribute_score = self.calculate_jaccard_similarity(search_attr_set, candidate_set)
+
+            if search_embedding and candidate.image_embedding:
+                vector_score = self.calculate_cosine_similarity(search_embedding, candidate.image_embedding)
+
+            combined_score = (attribute_weight * attribute_score) + (vector_weight * vector_score)
+
+            if combined_score < settings.min_match_score:
+                continue
+
+            distance_km = None
+            if latitude and longitude and candidate.latitude and candidate.longitude:
+                distance_km = self.calculate_distance_km(
+                    latitude, longitude,
+                    candidate.latitude, candidate.longitude
+                )
+
+                if distance_km > radius_km:
+                    continue
+
+            results.append((candidate, combined_score, distance_km))
+
+        results.sort(
+            key=lambda x: (x[1], -x[2] if x[2] is not None else 0),
+            reverse=True
+        )
+
+        return results[:limit]
+
+    @staticmethod
+    def calculate_cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+        """
+        Calculate cosine similarity between two vectors.
+
+        Args:
+            vec1: First vector
+            vec2: Second vector
+
+        Returns:
+            float: Similarity score between 0 and 1
+        """
+        if not vec1 or not vec2 or len(vec1) != len(vec2):
+            return 0.0
+
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        magnitude1 = math.sqrt(sum(a * a for a in vec1))
+        magnitude2 = math.sqrt(sum(b * b for b in vec2))
+
+        if magnitude1 == 0 or magnitude2 == 0:
+            return 0.0
+
+        similarity = dot_product / (magnitude1 * magnitude2)
+        return max(0.0, min(1.0, similarity))
+
     def rank_results(
         self,
         results: List[Tuple[DogSighting, float, Optional[float]]]
