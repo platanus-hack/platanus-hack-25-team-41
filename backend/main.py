@@ -167,7 +167,7 @@ async def create_sighting(
 
         print("🔢 Generating image embedding...")
         image_embedding = await embedding_service.generate_embedding(image_urls[0])
-        if image_embedding:
+        if image_embedding is not None:
             print(f"✅ Embedding generated: {len(image_embedding)} dimensions")
         else:
             print("⚠️  Failed to generate embedding, continuing without it")
@@ -314,7 +314,7 @@ async def search_sightings_with_image(
         if images:
             print("🔢 Generating search embedding from image...")
             search_embedding = await embedding_service.generate_embedding(search_request.images[0])
-            if search_embedding:
+            if search_embedding is not None:
                 print(f"✅ Search embedding generated")
 
         results = matching_service.find_matches_with_vectors(
