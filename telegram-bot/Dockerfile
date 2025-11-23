@@ -6,8 +6,8 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 
-RUN uv pip install --system --no-cache "python-telegram-bot[webhooks]" httpx python-dotenv
+RUN uv pip install --system --no-cache python-telegram-bot httpx python-dotenv flask gunicorn
 
 COPY bot.py .
 
-CMD ["python", "bot.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "2", "--timeout", "0", "bot:app"]

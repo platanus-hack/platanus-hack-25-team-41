@@ -1,21 +1,17 @@
 """
 Telegram Bot for Lost Dogs Finder
-Allows users to report dog sightings via Telegram.
+Uses Flask webhook for Cloud Run deployment.
 """
 import os
 import base64
 import logging
+import asyncio
 from io import BytesIO
 from dotenv import load_dotenv
 import httpx
-from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
+from flask import Flask, request, jsonify
+from telegram import Update, Bot
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 load_dotenv()
 
@@ -28,6 +24,10 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+
+app = Flask(__name__)
+bot_application = None
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -148,59 +148,60 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Log errors caused by updates."""
-    logger.error(f"Update {update} caused error {context.error}")
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint for Cloud Run."""
+    return jsonify({"status": "healthy"}), 200
 
 
-def main():
-    """Start the bot."""
+@app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=['POST'])
+def webhook():
+    """Handle incoming Telegram webhook updates."""
+    try:
+        json_data = request.get_json()
+        update = Update.de_json(json_data, bot_application.bot)
+
+        asyncio.run(bot_application.process_update(update))
+
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        logger.error(f"Error processing webhook: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def setup_bot():
+    """Initialize the bot application."""
+    global bot_application
+
     if not TELEGRAM_BOT_TOKEN:
-        raise ValueError("TELEGRAM_BOT_TOKEN not set in environment variables")
+        raise ValueError("TELEGRAM_BOT_TOKEN not set")
 
-    logger.info("Starting Telegram bot...")
+    logger.info("Initializing bot application...")
     logger.info(f"API Base URL: {API_BASE_URL}")
     logger.info(f"Frontend URL: {FRONTEND_URL}")
 
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    bot_application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    bot_application.add_handler(CommandHandler("start", start))
+    bot_application.add_handler(CommandHandler("help", help_command))
+    bot_application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    bot_application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    application.add_error_handler(error_handler)
+    asyncio.run(bot_application.initialize())
 
-    # Check if running on Cloud Run (has PORT env var)
-    port = os.getenv("PORT")
-    if port:
-        # Webhook mode for Cloud Run
-        webhook_url = os.getenv("WEBHOOK_URL")
-
-        # Construct webhook URL from Cloud Run metadata if not provided
-        if not webhook_url:
-            logger.warning("WEBHOOK_URL not set. Server will start but webhook will be configured on update.")
-            webhook_url = None
-
-        logger.info(f"Starting webhook server on 0.0.0.0:{port}")
-        if webhook_url:
-            logger.info(f"Webhook URL: {webhook_url}/{TELEGRAM_BOT_TOKEN}")
-        else:
-            logger.info(f"Webhook will be configured after deployment")
-
-        # Run webhook server
-        # The server responds on the port which satisfies Cloud Run health checks
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=int(port),
-            url_path=TELEGRAM_BOT_TOKEN,
-            webhook_url=f"{webhook_url}/{TELEGRAM_BOT_TOKEN}" if webhook_url else None,
-        )
+    if WEBHOOK_URL:
+        webhook_path = f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}"
+        logger.info(f"Setting webhook to: {webhook_path}")
+        asyncio.run(bot_application.bot.set_webhook(webhook_path))
+        logger.info("Webhook set successfully")
     else:
-        # Polling mode for local development
-        logger.info("Bot is ready! Starting polling...")
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        logger.warning("WEBHOOK_URL not set, webhook will need to be set manually")
 
+    logger.info("Bot initialized successfully")
+
+
+setup_bot()
 
 if __name__ == "__main__":
-    main()
+    port = int(os.getenv("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
