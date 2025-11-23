@@ -6,6 +6,7 @@ import os
 import base64
 import logging
 import asyncio
+import threading
 from io import BytesIO
 from dotenv import load_dotenv
 import httpx
@@ -14,6 +15,9 @@ from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 load_dotenv()
+
+# Thread-local storage for event loops
+thread_local = threading.local()
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -154,6 +158,14 @@ def health():
     return jsonify({"status": "healthy"}), 200
 
 
+def get_event_loop():
+    """Get or create an event loop for the current thread."""
+    if not hasattr(thread_local, 'loop') or thread_local.loop.is_closed():
+        thread_local.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(thread_local.loop)
+    return thread_local.loop
+
+
 @app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=['POST'])
 def webhook():
     """Handle incoming Telegram webhook updates."""
@@ -161,7 +173,8 @@ def webhook():
         json_data = request.get_json()
         update = Update.de_json(json_data, bot_application.bot)
 
-        asyncio.run(bot_application.process_update(update))
+        loop = get_event_loop()
+        loop.run_until_complete(bot_application.process_update(update))
 
         return jsonify({"ok": True}), 200
     except Exception as e:
