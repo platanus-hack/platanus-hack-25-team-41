@@ -304,7 +304,7 @@ class MatchingService:
         Returns:
             float: Similarity score between 0 and 1
         """
-        if not vec1 or not vec2 or len(vec1) != len(vec2):
+        if vec1 is None or vec2 is None or len(vec1) != len(vec2):
             return 0.0
 
         dot_product = sum(a * b for a, b in zip(vec1, vec2))
