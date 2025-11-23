@@ -1,114 +1,77 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, Filter, MapPin, Calendar, Heart, Share2, X, ChevronDown } from "lucide-react"
+import { Search, MapPin, Calendar, Heart, X, Camera, Loader2, Navigation, PawPrint } from "lucide-react"
+import { sightingsService } from "@/services/sightings"
+import dynamic from "next/dynamic"
 
-// Sample data - Santiago de Chile
-const perritosDisponibles = [
+// Import mini mapa dinámicamente para evitar SSR issues con Leaflet
+const MiniMapaDetalle = dynamic(
+  () => import("@/components/MiniMapaDetalle").then((mod) => mod.MiniMapaDetalle),
   {
-    id: 1,
-    nombre: "Max",
-    imagen: "/perro19.png",
-    tamano: "grande",
-    color: "negro",
-    edad: "adulto",
-    estado: "disponible",
-    ubicacion: "Santiago - Providencia",
-    fecha: "2024-01-10",
-    descripcion: "Perrito muy cariñoso, rescatado de la calle. Ya está vacunado y esterilizado.",
-    refugio: "Refugio Esperanza",
-  },
-  {
-    id: 2,
-    nombre: "Luna",
-    imagen: "/catto.png",
-    tamano: "mediano",
-    color: "blanco",
-    edad: "cachorro",
-    estado: "disponible",
-    ubicacion: "Santiago - Ñuñoa",
-    fecha: "2024-01-12",
-    descripcion: "Cachorrita juguetona de aproximadamente 4 meses. Busca una familia amorosa.",
-    refugio: "Patitas Felices",
-  },
-  {
-    id: 3,
-    nombre: "Rocky",
-    imagen: "/perro19.png",
-    tamano: "grande",
-    color: "café",
-    edad: "adulto",
-    estado: "en_proceso",
-    ubicacion: "Santiago - Las Condes",
-    fecha: "2024-01-08",
-    descripcion: "Perro guardián muy leal. Necesita un hogar con patio grande.",
-    refugio: "Rescate Animal Chile",
-  },
-  {
-    id: 4,
-    nombre: "Canela",
-    imagen: "/cat-slave.png",
-    tamano: "pequeño",
-    color: "café",
-    edad: "adulto",
-    estado: "disponible",
-    ubicacion: "Santiago - Vitacura",
-    fecha: "2024-01-14",
-    descripcion: "Perrita tranquila, ideal para departamento. Muy obediente.",
-    refugio: "Refugio Esperanza",
-  },
-  {
-    id: 5,
-    nombre: "Thor",
-    imagen: "/michi-formal.jpg",
-    tamano: "grande",
-    color: "dorado",
-    edad: "joven",
-    estado: "disponible",
-    ubicacion: "Santiago - La Reina",
-    fecha: "2024-01-11",
-    descripcion: "Husky mix muy activo. Necesita ejercicio diario y mucho amor.",
-    refugio: "Veterinaria San Jorge",
-  },
-  {
-    id: 6,
-    nombre: "Pelusa",
-    imagen: "/no_apuren.jpg",
-    tamano: "pequeño",
-    color: "blanco",
-    edad: "senior",
-    estado: "disponible",
-    ubicacion: "Santiago - Santiago Centro",
-    fecha: "2024-01-09",
-    descripcion: "Perrita senior muy dulce. Busca un hogar tranquilo para sus últimos años.",
-    refugio: "Patitas Felices",
-  },
-]
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[150px] rounded-xl bg-gray-100 flex items-center justify-center">
+        <div className="w-5 h-5 border-2 border-[#156d95] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    ),
+  }
+)
 
 const getEstadoLabel = (estado) => {
   switch (estado) {
     case "disponible":
-      return { label: "Disponible", color: "bg-green-100 text-green-700" }
+      return { label: "Avistado", color: "bg-green-100 text-green-700" }
     case "en_proceso":
-      return { label: "En proceso", color: "bg-yellow-100 text-yellow-700" }
-    case "adoptado":
-      return { label: "Adoptado", color: "bg-blue-100 text-blue-700" }
+      return { label: "En búsqueda", color: "bg-yellow-100 text-yellow-700" }
+    case "encontrado":
+      return { label: "Encontrado", color: "bg-blue-100 text-blue-700" }
     default:
       return { label: estado, color: "bg-gray-100 text-gray-700" }
   }
 }
 
 export const BuscarPerrito = () => {
-  const [busqueda, setBusqueda] = useState("")
-  const [filtros, setFiltros] = useState({
-    tamano: "",
-    edad: "",
-    ubicacion: "",
-  })
-  const [mostrarFiltros, setMostrarFiltros] = useState(false)
+  const [descripcion, setDescripcion] = useState("")
+  const [imagenBusqueda, setImagenBusqueda] = useState(null)
+  const [imagenPreview, setImagenPreview] = useState(null)
+  const [buscando, setBuscando] = useState(false)
+  const [resultados, setResultados] = useState(null)
+  const [error, setError] = useState(null)
+  const [ubicacionUsuario, setUbicacionUsuario] = useState(null)
+  const [cargandoUbicacion, setCargandoUbicacion] = useState(true)
   const [perritoSeleccionado, setPerritoSeleccionado] = useState(null)
   const [favoritos, setFavoritos] = useState([])
+  const fileInputRef = useRef(null)
+
+  // Obtener ubicación del usuario al montar el componente
+  useEffect(() => {
+    obtenerUbicacion()
+  }, [])
+
+  const obtenerUbicacion = () => {
+    setCargandoUbicacion(true)
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUbicacionUsuario({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          })
+          setCargandoUbicacion(false)
+          console.log("[BuscarPerrito] Ubicación obtenida:", position.coords.latitude, position.coords.longitude)
+        },
+        (error) => {
+          console.error("[BuscarPerrito] Error al obtener ubicación:", error)
+          setCargandoUbicacion(false)
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+      )
+    } else {
+      setCargandoUbicacion(false)
+    }
+  }
 
   const toggleFavorito = (id) => {
     setFavoritos((prev) =>
@@ -116,212 +79,329 @@ export const BuscarPerrito = () => {
     )
   }
 
-  const perritosFiltrados = perritosDisponibles.filter((perrito) => {
-    const matchBusqueda =
-      perrito.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-      perrito.descripcion.toLowerCase().includes(busqueda.toLowerCase()) ||
-      perrito.ubicacion.toLowerCase().includes(busqueda.toLowerCase())
+  const handleImagenChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImagenBusqueda(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagenPreview(reader.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
-    const matchTamano = !filtros.tamano || perrito.tamano === filtros.tamano
-    const matchEdad = !filtros.edad || perrito.edad === filtros.edad
-    const matchUbicacion =
-      !filtros.ubicacion || perrito.ubicacion.toLowerCase().includes(filtros.ubicacion.toLowerCase())
+  const limpiarImagen = () => {
+    setImagenBusqueda(null)
+    setImagenPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
 
-    return matchBusqueda && matchTamano && matchEdad && matchUbicacion
-  })
+  const limpiarBusqueda = () => {
+    setResultados(null)
+    setError(null)
+    setDescripcion("")
+    limpiarImagen()
+  }
 
-  const limpiarFiltros = () => {
-    setFiltros({ tamano: "", edad: "", ubicacion: "" })
-    setBusqueda("")
+  // Convertir imagen a base64
+  const imageToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // Realizar búsqueda
+  const buscar = async (e) => {
+    e.preventDefault()
+
+    if (!imagenBusqueda && !descripcion.trim()) {
+      setError("Por favor, sube una foto de tu mascota o describe cómo es.")
+      return
+    }
+
+    setBuscando(true)
+    setError(null)
+
+    try {
+      let imageBase64 = null
+      if (imagenBusqueda) {
+        imageBase64 = await imageToBase64(imagenBusqueda)
+      }
+
+      console.log("[BuscarPerrito] Iniciando búsqueda...")
+      console.log("[BuscarPerrito] Ubicación del usuario:", ubicacionUsuario)
+
+      const response = await sightingsService.searchSightings({
+        images: imageBase64 ? [imageBase64] : undefined,
+        description: descripcion.trim() || undefined,
+        latitude: ubicacionUsuario?.lat,
+        longitude: ubicacionUsuario?.lng,
+        limit: 20,
+      })
+
+      console.log("[BuscarPerrito] Resultados:", response)
+
+      // Transformar resultados al formato del componente
+      const resultadosTransformados = (response.results || response.sightings || []).map((s) => ({
+        id: s.id,
+        nombre: s.user_description?.split(",")[0] || s.attributes?.[0] || "Perrito avistado",
+        imagen: s.image_urls?.[0] || "/perro19.png",
+        tamano: s.attributes?.find((a) => ["pequeño", "mediano", "grande"].includes(a.toLowerCase()))?.toLowerCase() || "mediano",
+        color: s.attributes?.find((a) => !["pequeño", "mediano", "grande", "cachorro", "joven", "adulto", "senior"].includes(a.toLowerCase())) || "",
+        edad: s.attributes?.find((a) => ["cachorro", "joven", "adulto", "senior"].includes(a.toLowerCase()))?.toLowerCase() || "adulto",
+        estado: s.status || "disponible",
+        ubicacion: s.location?.neighborhood || s.location?.address || "Santiago",
+        fecha: s.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+        descripcion: s.user_description || s.attributes?.join(", ") || "Sin descripción",
+        reportadoPor: s.contact_info?.name || "Usuario",
+        similarity: s.similarity,
+        lat: s.location?.lat,
+        lng: s.location?.lng,
+        contacto: s.contact_info,
+      }))
+
+      setResultados(resultadosTransformados)
+    } catch (err) {
+      console.error("[BuscarPerrito] Error en búsqueda:", err)
+      setError("Error al buscar. Por favor, intenta de nuevo.")
+    } finally {
+      setBuscando(false)
+    }
   }
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-4 bg-gradient-to-b from-white to-gray-50">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Buscar un perrito</h1>
+          <div className="w-16 h-16 bg-[#156d95]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <PawPrint className="w-8 h-8 text-[#156d95]" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Buscar mi mascota</h1>
           <p className="text-gray-600">
-            Encuentra a tu nuevo mejor amigo entre los perritos que buscan hogar
+            Sube una foto de tu mascota perdida y buscaremos coincidencias en los avistamientos reportados cerca de ti.
           </p>
         </motion.div>
 
-        {/* Search and Filters */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6"
-        >
-          <div className="flex gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por nombre, descripción o ubicación..."
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#156d95] focus:border-transparent outline-none transition-all"
-              />
-            </div>
-            <button
-              onClick={() => setMostrarFiltros(!mostrarFiltros)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${
-                mostrarFiltros
-                  ? "bg-[#156d95] text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              <Filter className="w-5 h-5" />
-              Filtros
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${mostrarFiltros ? "rotate-180" : ""}`}
-              />
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {mostrarFiltros && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Tamaño</label>
-                    <select
-                      value={filtros.tamano}
-                      onChange={(e) => setFiltros({ ...filtros, tamano: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#156d95] focus:border-transparent outline-none"
-                    >
-                      <option value="">Todos</option>
-                      <option value="pequeño">Pequeño</option>
-                      <option value="mediano">Mediano</option>
-                      <option value="grande">Grande</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Edad</label>
-                    <select
-                      value={filtros.edad}
-                      onChange={(e) => setFiltros({ ...filtros, edad: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#156d95] focus:border-transparent outline-none"
-                    >
-                      <option value="">Todas</option>
-                      <option value="cachorro">Cachorro</option>
-                      <option value="joven">Joven</option>
-                      <option value="adulto">Adulto</option>
-                      <option value="senior">Senior</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Ciudad</label>
-                    <input
-                      type="text"
-                      value={filtros.ubicacion}
-                      onChange={(e) => setFiltros({ ...filtros, ubicacion: e.target.value })}
-                      placeholder="Ej: CDMX, Guadalajara..."
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#156d95] focus:border-transparent outline-none"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end mt-4">
+        {/* Formulario de búsqueda */}
+        {!resultados && (
+          <motion.form
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            onSubmit={buscar}
+            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6"
+          >
+            {/* Subir imagen */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Foto de tu mascota
+              </label>
+              {!imagenPreview ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-48 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-3 hover:border-[#156d95] hover:bg-[#156d95]/5 transition-colors cursor-pointer"
+                >
+                  <Camera className="w-10 h-10 text-gray-400" />
+                  <span className="text-gray-500">Haz clic para subir una foto</span>
+                  <span className="text-xs text-gray-400">JPG, PNG hasta 10MB</span>
+                </button>
+              ) : (
+                <div className="relative">
+                  <img
+                    src={imagenPreview}
+                    alt="Foto de tu mascota"
+                    className="w-full h-48 object-cover rounded-xl border border-gray-200"
+                  />
                   <button
-                    onClick={limpiarFiltros}
-                    className="text-sm text-[#156d95] hover:underline"
+                    type="button"
+                    onClick={limpiarImagen}
+                    className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-md"
                   >
-                    Limpiar filtros
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImagenChange}
+                className="hidden"
+              />
+            </div>
 
-        {/* Results count */}
-        <div className="mb-4 text-gray-600">
-          {perritosFiltrados.length} perritos encontrados
-        </div>
+            {/* Descripción */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Describe a tu mascota
+              </label>
+              <textarea
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="Ej: Perro mediano color café con manchas blancas, collar rojo, muy amigable..."
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#156d95] focus:border-transparent outline-none resize-none"
+              />
+            </div>
 
-        {/* Grid of dogs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {perritosFiltrados.map((perrito, index) => (
-            <motion.div
-              key={perrito.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => setPerritoSeleccionado(perrito)}
-            >
-              <div className="relative">
-                <img
-                  src={perrito.imagen}
-                  alt={perrito.nombre}
-                  className="w-full h-48 object-cover"
-                />
+            {/* Ubicación */}
+            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${ubicacionUsuario ? 'bg-green-100' : 'bg-gray-200'}`}>
+                {cargandoUbicacion ? (
+                  <Loader2 className="w-5 h-5 text-gray-500 animate-spin" />
+                ) : (
+                  <Navigation className={`w-5 h-5 ${ubicacionUsuario ? 'text-green-600' : 'text-gray-400'}`} />
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-800">
+                  {cargandoUbicacion ? 'Obteniendo ubicación...' : ubicacionUsuario ? 'Ubicación detectada' : 'Ubicación no disponible'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {ubicacionUsuario
+                    ? 'Buscaremos avistamientos cerca de ti'
+                    : 'Activa la ubicación para mejores resultados'}
+                </p>
+              </div>
+              {!ubicacionUsuario && !cargandoUbicacion && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleFavorito(perrito.id)
-                  }}
-                  className="absolute top-3 right-3 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                  type="button"
+                  onClick={obtenerUbicacion}
+                  className="text-sm text-[#156d95] hover:underline"
                 >
-                  <Heart
-                    className={`w-5 h-5 ${
-                      favoritos.includes(perrito.id)
-                        ? "fill-red-500 text-red-500"
-                        : "text-gray-400"
-                    }`}
-                  />
+                  Reintentar
                 </button>
-                <div className="absolute bottom-3 left-3">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      getEstadoLabel(perrito.estado).color
-                    }`}
-                  >
-                    {getEstadoLabel(perrito.estado).label}
-                  </span>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-lg font-bold text-gray-800">{perrito.nombre}</h3>
-                  <span className="text-sm text-gray-500 capitalize">{perrito.tamano}</span>
-                </div>
-                <p className="text-gray-600 text-sm line-clamp-2 mb-3">{perrito.descripcion}</p>
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {perrito.ubicacion}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              )}
+            </div>
 
-        {perritosFiltrados.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No se encontraron perritos con esos criterios.</p>
+            {/* Error */}
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Botón de búsqueda */}
             <button
-              onClick={limpiarFiltros}
-              className="mt-4 text-[#156d95] hover:underline"
+              type="submit"
+              disabled={buscando}
+              className="w-full bg-[#156d95] text-white py-4 px-6 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-[#125a7d] transition-colors shadow-lg shadow-[#156d95]/20 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Limpiar filtros
+              {buscando ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Buscando coincidencias...
+                </>
+              ) : (
+                <>
+                  <Search className="w-5 h-5" />
+                  Buscar mi mascota
+                </>
+              )}
             </button>
-          </div>
+          </motion.form>
         )}
 
-        {/* Detail Modal */}
+        {/* Resultados */}
+        {resultados && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {/* Header de resultados */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">
+                  {resultados.length > 0
+                    ? `${resultados.length} posibles coincidencias`
+                    : 'No encontramos coincidencias'}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {resultados.length > 0
+                    ? 'Revisa los avistamientos que podrían ser tu mascota'
+                    : 'Intenta con otra foto o descripción'}
+                </p>
+              </div>
+              <button
+                onClick={limpiarBusqueda}
+                className="text-sm text-[#156d95] hover:underline"
+              >
+                Nueva búsqueda
+              </button>
+            </div>
+
+            {/* Lista de resultados */}
+            {resultados.length > 0 ? (
+              <div className="space-y-4">
+                {resultados.map((perrito, index) => (
+                  <motion.div
+                    key={perrito.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => setPerritoSeleccionado(perrito)}
+                  >
+                    <div className="flex">
+                      <img
+                        src={perrito.imagen}
+                        alt={perrito.nombre}
+                        className="w-32 h-32 object-cover"
+                      />
+                      <div className="flex-1 p-4">
+                        <div className="flex items-start justify-between mb-1">
+                          <h3 className="font-bold text-gray-800">{perrito.nombre}</h3>
+                          {perrito.similarity && (
+                            <span className="text-xs bg-[#156d95]/10 text-[#156d95] px-2 py-1 rounded-full font-medium">
+                              {Math.round(perrito.similarity * 100)}% similar
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-gray-600 text-sm line-clamp-2 mb-2">{perrito.descripcion}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {perrito.ubicacion}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {perrito.fecha}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <PawPrint className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-600 mb-4">
+                  No hemos encontrado avistamientos que coincidan con tu búsqueda.
+                </p>
+                <p className="text-sm text-gray-500">
+                  Te recomendamos reportar a tu mascota como perdida para que otros usuarios puedan ayudarte.
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Modal de detalle */}
         <AnimatePresence>
           {perritoSeleccionado && (
             <motion.div
@@ -350,12 +430,19 @@ export const BuscarPerrito = () => {
                   >
                     <X className="w-5 h-5 text-gray-600" />
                   </button>
+                  {perritoSeleccionado.similarity && (
+                    <div className="absolute bottom-4 left-4">
+                      <span className="bg-[#156d95] text-white px-3 py-1 rounded-full text-sm font-medium">
+                        {Math.round(perritoSeleccionado.similarity * 100)}% de similitud
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-800">{perritoSeleccionado.nombre}</h2>
-                      <p className="text-gray-500">{perritoSeleccionado.refugio}</p>
+                      <p className="text-gray-500">Reportado por: {perritoSeleccionado.reportadoPor || "Usuario"}</p>
                     </div>
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -383,7 +470,7 @@ export const BuscarPerrito = () => {
 
                   <p className="text-gray-600 mb-4">{perritoSeleccionado.descripcion}</p>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
                     <MapPin className="w-4 h-4" />
                     {perritoSeleccionado.ubicacion}
                     <span className="mx-2">•</span>
@@ -391,9 +478,18 @@ export const BuscarPerrito = () => {
                     {perritoSeleccionado.fecha}
                   </div>
 
+                  {/* Mini mapa de ubicación */}
+                  <div className="mb-6">
+                    <p className="text-xs text-gray-500 mb-2">Última ubicación conocida</p>
+                    <MiniMapaDetalle
+                      lat={perritoSeleccionado.lat}
+                      lng={perritoSeleccionado.lng}
+                    />
+                  </div>
+
                   <div className="flex gap-3">
                     <button className="flex-1 bg-[#156d95] text-white py-3 px-6 rounded-full font-medium hover:bg-[#125a7d] transition-colors">
-                      Quiero adoptarlo
+                      Es mi mascota
                     </button>
                     <button
                       onClick={(e) => {
@@ -409,9 +505,6 @@ export const BuscarPerrito = () => {
                             : "text-gray-400"
                         }`}
                       />
-                    </button>
-                    <button className="w-12 h-12 border border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors">
-                      <Share2 className="w-5 h-5 text-gray-400" />
                     </button>
                   </div>
                 </div>

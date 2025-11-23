@@ -19,4 +19,17 @@ export const sightingsService = {
     const response = await api.post("/api/sightings", data)
     return response.data
   },
+
+  // Buscar avistamientos por imagen y/o descripción
+  searchSightings: async ({ images, description, latitude, longitude, radius, limit = 20 }) => {
+    const response = await api.post("/api/sightings/search", {
+      images,
+      description,
+      latitude,
+      longitude,
+      radius,
+      limit,
+    })
+    return response.data
+  },
 }
