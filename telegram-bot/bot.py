@@ -189,15 +189,11 @@ def setup_bot():
 
     asyncio.run(bot_application.initialize())
 
-    if WEBHOOK_URL:
-        webhook_path = f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}"
-        logger.info(f"Setting webhook to: {webhook_path}")
-        asyncio.run(bot_application.bot.set_webhook(webhook_path))
-        logger.info("Webhook set successfully")
-    else:
-        logger.warning("WEBHOOK_URL not set, webhook will need to be set manually")
-
     logger.info("Bot initialized successfully")
+    if WEBHOOK_URL:
+        logger.info(f"Webhook should be set to: {WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}")
+    else:
+        logger.warning("WEBHOOK_URL not set")
 
 
 setup_bot()

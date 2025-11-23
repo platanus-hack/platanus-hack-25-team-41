@@ -71,4 +71,11 @@ jobs:
             --region ${{ env.REGION }} \
             --update-env-vars="WEBHOOK_URL=${SERVICE_URL}"
 
-          echo "Webhook URL configured: ${SERVICE_URL}"
+          echo "WEBHOOK_URL configured: ${SERVICE_URL}"
+
+          # Set Telegram webhook via API
+          WEBHOOK_PATH="${SERVICE_URL}/${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/setWebhook" \
+            -d "url=${WEBHOOK_PATH}"
+
+          echo "Telegram webhook set to: ${WEBHOOK_PATH}"
