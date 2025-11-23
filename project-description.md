@@ -98,6 +98,7 @@ Creamos **BusCachorros**, una plataforma que democratiza la búsqueda de mascota
 ### Infraestructura
 - Frontend desplegado en Google Cloud Run
 - Backend desplegado en Google Cloud Run
+- Bot de telegram desplegado en Google Cloud Run
 - Base de datos PostgreSQL en Cloud SQL con pgvector
 - Almacenamiento de imágenes en Cloud Storage
 - CI/CD con GitHub Actions
@@ -106,6 +107,7 @@ Creamos **BusCachorros**, una plataforma que democratiza la búsqueda de mascota
 - **Área de probabilidad**: Círculos concéntricos en el mapa que estiman dónde podría estar el perro basado en el tiempo transcurrido desde el avistamiento
 - **Sistema de contacto**: Conexión directa entre quien reporta y quien busca (llamada o WhatsApp)
 - **Filtros inteligentes**: Por radio de distancia, área visible del mapa, y más
+- **Avistamiento por mensajeria estandar**: Relleno de formulario de avistamiento mediante mensajes de telegram
 
 ## 4. Resultados
 
