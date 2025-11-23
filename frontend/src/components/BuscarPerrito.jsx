@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, MapPin, Calendar, Heart, X, Camera, Loader2, Navigation, PawPrint } from "lucide-react"
+import { Search, MapPin, Calendar, Heart, X, Camera, Loader2, Navigation, PawPrint, Clock, Maximize2, Minimize2 } from "lucide-react"
 import { sightingsService } from "@/services/sightings"
 import dynamic from "next/dynamic"
 
@@ -43,6 +43,7 @@ export const BuscarPerrito = () => {
   const [cargandoUbicacion, setCargandoUbicacion] = useState(true)
   const [perritoSeleccionado, setPerritoSeleccionado] = useState(null)
   const [favoritos, setFavoritos] = useState([])
+  const [mapaExpandido, setMapaExpandido] = useState(false)
   const fileInputRef = useRef(null)
 
   // Obtener ubicación del usuario al montar el componente
@@ -148,23 +149,32 @@ export const BuscarPerrito = () => {
       console.log("[BuscarPerrito] Resultados:", response)
 
       // Transformar resultados al formato del componente
-      const resultadosTransformados = (response.results || response.sightings || []).map((s) => ({
-        id: s.id,
-        nombre: s.user_description?.split(",")[0] || s.attributes?.[0] || "Perrito avistado",
-        imagen: s.image_urls?.[0] || "/perro19.png",
-        tamano: s.attributes?.find((a) => ["pequeño", "mediano", "grande"].includes(a.toLowerCase()))?.toLowerCase() || "mediano",
-        color: s.attributes?.find((a) => !["pequeño", "mediano", "grande", "cachorro", "joven", "adulto", "senior"].includes(a.toLowerCase())) || "",
-        edad: s.attributes?.find((a) => ["cachorro", "joven", "adulto", "senior"].includes(a.toLowerCase()))?.toLowerCase() || "adulto",
-        estado: s.status || "disponible",
-        ubicacion: s.location?.neighborhood || s.location?.address || "Santiago",
-        fecha: s.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
-        descripcion: s.user_description || s.attributes?.join(", ") || "Sin descripción",
-        reportadoPor: s.contact_info?.name || "Usuario",
-        similarity: s.similarity,
-        lat: s.location?.lat,
-        lng: s.location?.lng,
-        contacto: s.contact_info,
-      }))
+      const resultadosTransformados = (response.results || response.sightings || []).map((s) => {
+        // Extraer fecha y hora del created_at
+        const createdAt = s.created_at ? new Date(s.created_at) : new Date()
+        const fecha = createdAt.toISOString().split("T")[0]
+        const hora = createdAt.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })
+
+        return {
+          id: s.id,
+          nombre: s.user_description?.split(",")[0] || s.attributes?.[0] || "Perrito avistado",
+          imagen: s.image_urls?.[0] || "/perro19.png",
+          tamano: s.attributes?.find((a) => ["pequeño", "mediano", "grande"].includes(a.toLowerCase()))?.toLowerCase() || "mediano",
+          color: s.attributes?.find((a) => !["pequeño", "mediano", "grande", "cachorro", "joven", "adulto", "senior"].includes(a.toLowerCase())) || "",
+          edad: s.attributes?.find((a) => ["cachorro", "joven", "adulto", "senior"].includes(a.toLowerCase()))?.toLowerCase() || "adulto",
+          estado: s.status || "disponible",
+          ubicacion: s.location?.neighborhood || s.location?.address || "Santiago",
+          fecha,
+          hora,
+          createdAt: s.created_at, // Timestamp completo para cálculo de radio de probabilidad
+          descripcion: s.user_description || s.attributes?.join(", ") || "Sin descripción",
+          reportadoPor: s.contact_info?.name || "Usuario",
+          similarity: s.similarity,
+          lat: s.location?.lat,
+          lng: s.location?.lng,
+          contacto: s.contact_info,
+        }
+      })
 
       setResultados(resultadosTransformados)
     } catch (err) {
@@ -370,7 +380,7 @@ export const BuscarPerrito = () => {
                           )}
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2 mb-2">{perrito.descripcion}</p>
-                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                        <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
                             {perrito.ubicacion}
@@ -379,6 +389,12 @@ export const BuscarPerrito = () => {
                             <Calendar className="w-3 h-3" />
                             {perrito.fecha}
                           </span>
+                          {perrito.hora && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {perrito.hora}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -470,20 +486,43 @@ export const BuscarPerrito = () => {
 
                   <p className="text-gray-600 mb-4">{perritoSeleccionado.descripcion}</p>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                    <MapPin className="w-4 h-4" />
-                    {perritoSeleccionado.ubicacion}
-                    <span className="mx-2">•</span>
-                    <Calendar className="w-4 h-4" />
-                    {perritoSeleccionado.fecha}
+                  <div className="flex items-center flex-wrap gap-2 text-sm text-gray-500 mb-4">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      {perritoSeleccionado.ubicacion}
+                    </span>
+                    <span className="mx-1">•</span>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      {perritoSeleccionado.fecha}
+                    </span>
+                    {perritoSeleccionado.hora && (
+                      <>
+                        <span className="mx-1">•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {perritoSeleccionado.hora}
+                        </span>
+                      </>
+                    )}
                   </div>
 
-                  {/* Mini mapa de ubicación */}
+                  {/* Mini mapa de ubicación con área de búsqueda */}
                   <div className="mb-6">
-                    <p className="text-xs text-gray-500 mb-2">Última ubicación conocida</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-gray-500">Área probable de ubicación</p>
+                      <button
+                        onClick={() => setMapaExpandido(true)}
+                        className="flex items-center gap-1 text-xs text-[#156d95] hover:text-[#125a7d] transition-colors"
+                      >
+                        <Maximize2 className="w-3 h-3" />
+                        Expandir
+                      </button>
+                    </div>
                     <MiniMapaDetalle
                       lat={perritoSeleccionado.lat}
                       lng={perritoSeleccionado.lng}
+                      fecha={perritoSeleccionado.createdAt || perritoSeleccionado.fecha}
                     />
                   </div>
 
@@ -507,6 +546,52 @@ export const BuscarPerrito = () => {
                       />
                     </button>
                   </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Modal de mapa expandido */}
+        <AnimatePresence>
+          {mapaExpandido && perritoSeleccionado && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"
+              onClick={() => setMapaExpandido(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-2xl w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header del mapa expandido */}
+                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Área de búsqueda</h3>
+                    <p className="text-sm text-gray-500">{perritoSeleccionado.nombre} - {perritoSeleccionado.ubicacion}</p>
+                  </div>
+                  <button
+                    onClick={() => setMapaExpandido(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <Minimize2 className="w-4 h-4" />
+                    Cerrar
+                  </button>
+                </div>
+
+                {/* Mapa expandido */}
+                <div className="flex-1 p-4">
+                  <MiniMapaDetalle
+                    lat={perritoSeleccionado.lat}
+                    lng={perritoSeleccionado.lng}
+                    fecha={perritoSeleccionado.createdAt || perritoSeleccionado.fecha}
+                    expandido={true}
+                  />
                 </div>
               </motion.div>
             </motion.div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
-import { MapPin, Dog, Calendar, User, Locate, Eye, Filter, ChevronDown, X } from "lucide-react"
+import { MapPin, Dog, Calendar, User, Locate, Eye, Filter, ChevronDown, X, Clock } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
@@ -251,6 +251,9 @@ export const MapaPerritos = () => {
         // Transformar datos de la API al formato del componente
         const transformedSightings = data.sightings.map((s, index) => {
           console.log(`[MapaPerritos] Transformando sighting ${index}:`, s)
+          const createdAt = s.created_at ? new Date(s.created_at) : new Date()
+          const fecha = createdAt.toISOString().split("T")[0]
+          const hora = createdAt.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })
           return {
             id: s.id,
             lat: s.latitude,
@@ -259,7 +262,8 @@ export const MapaPerritos = () => {
             descripcion: s.description || "",
             imagen: s.photo,
             estado: "pendiente", // Default, ajustar si la API lo incluye
-            fecha: new Date().toISOString().split("T")[0],
+            fecha,
+            hora,
             reportadoPor: "Usuario",
           }
         })
@@ -567,6 +571,12 @@ export const MapaPerritos = () => {
                     <Calendar className="w-3 h-3" />
                     {dog.fecha}
                   </span>
+                  {dog.hora && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {dog.hora}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1">
                     <User className="w-3 h-3" />
                     {dog.reportadoPor}

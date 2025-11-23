@@ -1,8 +1,17 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { ArrowUpRight } from "lucide-react"
 import Link from "next/link"
+
+const dogImages = [
+  "/stray_dog_1.jpg",
+  "/stray_dog_2.jpg",
+  "/stray_dog_3.jpg",
+  "/stray_dog_4.jpg",
+  "/stray_dog_5.JPG",
+]
 
 export const HeroCatastro = ({
   dailyVolume = "2,450",
@@ -10,13 +19,19 @@ export const HeroCatastro = ({
   headline = "Catastro geolocalizado de perros callejeros",
   subheadline = "Ayúdanos a mapear y registrar perros callejeros en tu zona. Con tu reporte, las personas que buscan a su mascota perdida podrán encontrarla más fácil.",
   description = "Una plataforma colaborativa para generar datos geolocalizados de perros callejeros y ayudar a reunir mascotas perdidas con sus familias.",
-  videoSrc = "https://cdn.sanity.io/files/1t8iva7t/production/a2cbbed7c998cf93e7ecb6dae75bab42b13139c2.mp4",
-  posterSrc = "/images/design-mode/9ad78a5534a46e77bafe116ce1c38172c60dc21a-1069x1068.png",
   primaryButtonText = "Reportar perrito",
   primaryButtonHref = "/reportar",
   secondaryButtonText = "Buscar mi mascota",
   secondaryButtonHref = "/buscar",
 } = {}) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % dogImages.length)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [])
   return (
     <section className="w-full px-8 pt-32 pb-16">
       <div className="max-w-7xl mx-auto">
@@ -135,25 +150,34 @@ export const HeroCatastro = ({
               ease: [0.645, 0.045, 0.355, 1],
               delay: 0.2,
             }}
-            className="col-span-12 lg:col-span-6 bg-white rounded-[40px] flex justify-center items-center aspect-square overflow-hidden"
-            style={{
-              backgroundImage:
-                "url(https://storage.googleapis.com/storage.magicpath.ai/user/282171029206482944/assets/882ef3dd-3459-4fd8-a939-52ceada51d5c.png)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              opacity: "1",
-            }}
+            className="col-span-12 lg:col-span-6 bg-gray-100 rounded-[40px] flex justify-center items-center aspect-square overflow-hidden relative"
           >
-            <video
-              src={videoSrc}
-              autoPlay
-              muted
-              loop
-              playsInline
-              poster={posterSrc}
-              className="block w-full h-full object-cover"
-            />
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={currentImageIndex}
+                src={dogImages[currentImageIndex]}
+                alt={`Perrito callejero ${currentImageIndex + 1}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.8 }}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </AnimatePresence>
+            {/* Indicadores */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+              {dogImages.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentImageIndex(index)}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    index === currentImageIndex
+                      ? "bg-white w-6"
+                      : "bg-white/50 hover:bg-white/75"
+                  }`}
+                />
+              ))}
+            </div>
           </motion.div>
         </div>
       </div>
