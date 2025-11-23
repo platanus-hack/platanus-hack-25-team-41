@@ -135,8 +135,21 @@ async def create_sighting(
         image_urls = await storage_service.upload_multiple_images(images)
         print(f"✅ Images uploaded: {image_urls}")
 
+        # Generate auto-description from structured fields for LLM context
+        description_parts = []
+        if sighting.tamano:
+            description_parts.append(f"Tamaño: {sighting.tamano}")
+        if sighting.color:
+            description_parts.append(f"Color: {sighting.color}")
+        if sighting.estado:
+            description_parts.append(f"Estado: {sighting.estado}")
+        if sighting.notas:
+            description_parts.append(sighting.notas)
+
+        auto_description = ". ".join(description_parts) if description_parts else None
+
         print("🤖 Extracting dog attributes with LLM...")
-        llm_result = await dog_description(images, sighting.description)
+        llm_result = await dog_description(images, auto_description)
 
         if not llm_result or llm_result.get("es_perro") == False:
             for url in image_urls:
@@ -152,7 +165,11 @@ async def create_sighting(
 
         new_sighting = DogSighting(
             image_urls=image_urls,
-            user_description=sighting.description,
+            user_description=auto_description,  # Auto-generated from structured fields
+            tamano=sighting.tamano,
+            color=sighting.color,
+            estado=sighting.estado,
+            notas=sighting.notas,
             attributes=attributes,
             latitude=sighting.latitude,
             longitude=sighting.longitude,

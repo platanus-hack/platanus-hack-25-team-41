@@ -20,9 +20,15 @@ class DogSighting(Base):
     # Images (GCS URLs)
     image_urls = Column(ARRAY(Text), nullable=False)
     
-    # User description (optional)
+    # User description (optional, auto-generated from structured fields)
     user_description = Column(Text, nullable=True)
-    
+
+    # Structured fields from user input
+    tamano = Column(String(20), nullable=True)  # pequeño, mediano, grande
+    color = Column(String(100), nullable=True)  # café, negro, blanco, etc.
+    estado = Column(String(50), nullable=True)  # saludable, herido, desnutrido
+    notas = Column(Text, nullable=True)  # Additional notes
+
     # Attributes extracted by LLM
     # Example: ["labrador", "amarillo", "grande", "adulto", "collar_rojo"]
     attributes = Column(JSONB, nullable=False)

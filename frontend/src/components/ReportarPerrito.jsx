@@ -122,19 +122,13 @@ export const ReportarPerrito = () => {
       // Convertir imagen a base64
       const imageBase64 = await imageToBase64(imagen)
 
-      // Construir descripción combinando los campos del formulario
-      const descripcionParts = []
-      if (formData.tamano) descripcionParts.push(`Tamaño: ${formData.tamano}`)
-      if (formData.color) descripcionParts.push(`Color: ${formData.color}`)
-      if (formData.estado) descripcionParts.push(`Estado: ${formData.estado}`)
-      if (formData.notas) descripcionParts.push(formData.notas)
-
-      const description = descripcionParts.join(". ") || null
-
-      // Preparar datos para el API
+      // Preparar datos estructurados para el API
       const sightingData = {
         images: [imageBase64],
-        description,
+        tamano: formData.tamano || null,
+        color: formData.color || null,
+        estado: formData.estado || null,
+        notas: formData.notas || null,
         latitude: ubicacion.lat,
         longitude: ubicacion.lng,
       }

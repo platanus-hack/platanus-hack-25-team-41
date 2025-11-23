@@ -11,7 +11,13 @@ class DogSightingCreate(BaseModel):
     """Schema for creating a new dog sighting with base64 images."""
 
     images: List[str] = Field(..., min_length=1, max_length=3, description="1-3 base64-encoded images")
-    description: Optional[str] = Field(None, description="User description of the dog")
+
+    # Structured fields (replaces free-text description)
+    tamano: Optional[str] = Field(None, max_length=20, description="pequeño, mediano, grande")
+    color: Optional[str] = Field(None, max_length=100, description="Color del perro")
+    estado: Optional[str] = Field(None, max_length=50, description="saludable, herido, desnutrido")
+    notas: Optional[str] = Field(None, description="Notas adicionales del usuario")
+
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     location_address: Optional[str] = None
@@ -40,15 +46,22 @@ class ContactInfoResponse(BaseModel):
 class DogSightingResponse(BaseModel):
     """Schema for dog sighting in responses."""
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     image_urls: List[str]
-    user_description: Optional[str] = None
-    attributes: List[str]  # From JSONB
-    
+    user_description: Optional[str] = None  # Auto-generated fallback
+
+    # Structured fields
+    tamano: Optional[str] = None
+    color: Optional[str] = None
+    estado: Optional[str] = None
+    notas: Optional[str] = None
+
+    attributes: List[str]  # From JSONB (AI-extracted)
+
     location: LocationResponse
     contact_info: Optional[ContactInfoResponse] = None
-    
+
     status: str
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -60,6 +73,10 @@ class DogSightingResponse(BaseModel):
             id=db_model.id,
             image_urls=db_model.image_urls,
             user_description=db_model.user_description,
+            tamano=db_model.tamano,
+            color=db_model.color,
+            estado=db_model.estado,
+            notas=db_model.notas,
             attributes=db_model.attributes,
             location=LocationResponse(
                 lat=db_model.latitude,
