@@ -66,11 +66,26 @@ Users can interact with the bot:
 ## How It Works
 
 1. User sends photo + description to bot
-2. Bot uploads to `/api/sightings/draft` endpoint
-3. Backend processes image with LLM, extracts dog attributes
-4. Bot returns link: `https://yoursite.com/reportar?draft=<uuid>`
-5. User clicks link, adds location, submits report
-6. Report becomes active and appears on the map
+2. Telegram pushes update to bot via webhook (in production) or polling (local dev)
+3. Bot uploads to `/api/sightings/draft` endpoint
+4. Backend processes image with LLM, extracts dog attributes
+5. Bot returns link: `https://yoursite.com/reportar?draft=<uuid>`
+6. User clicks link, adds location, submits report
+7. Report becomes active and appears on the map
+
+## Deployment Modes
+
+**Production (Cloud Run):**
+- Uses webhook mode
+- Telegram sends updates directly to Cloud Run URL
+- More efficient and cost-effective
+- Automatically configured by deployment workflow
+
+**Local Development:**
+- Uses polling mode
+- Bot actively checks for updates from Telegram
+- Easier for development and testing
+- No webhook configuration needed
 
 ## Production Deployment
 
@@ -86,8 +101,10 @@ Add these to your GitHub repository settings (Settings → Secrets and variables
 - `WIF_PROVIDER` - Workload Identity Federation provider
 - `WIF_SERVICE_ACCOUNT` - Service account for WIF
 - `TELEGRAM_BOT_TOKEN` - Your Telegram bot token from @BotFather
-- `API_BASE_URL` - Production backend URL (e.g., `https://your-backend.run.app`)
+- `API_BASE_URL` - Production backend URL (e.g., `https://backend-xxx.run.app`)
 - `FRONTEND_URL` - Production frontend URL (e.g., `https://yoursite.com`)
+
+**Note:** `WEBHOOK_URL` is automatically set by the deployment workflow based on the Cloud Run service URL.
 
 **Workflow Trigger:**
 

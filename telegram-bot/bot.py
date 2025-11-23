@@ -171,8 +171,27 @@ def main():
 
     application.add_error_handler(error_handler)
 
-    logger.info("Bot is ready! Starting polling...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # Check if running on Cloud Run (has PORT env var)
+    port = os.getenv("PORT")
+    if port:
+        # Webhook mode for Cloud Run
+        webhook_url = os.getenv("WEBHOOK_URL")
+        if not webhook_url:
+            raise ValueError("WEBHOOK_URL must be set when running on Cloud Run")
+
+        logger.info(f"Starting webhook on port {port}")
+        logger.info(f"Webhook URL: {webhook_url}")
+
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=int(port),
+            url_path=TELEGRAM_BOT_TOKEN,
+            webhook_url=f"{webhook_url}/{TELEGRAM_BOT_TOKEN}",
+        )
+    else:
+        # Polling mode for local development
+        logger.info("Bot is ready! Starting polling...")
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
