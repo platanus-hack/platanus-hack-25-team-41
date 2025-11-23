@@ -44,75 +44,56 @@ Creamos **BusCachorros**, una plataforma que democratiza la búsqueda de mascota
 
 ### Inteligencia Artificial
 
-  **Arquitectura híbrida** que combina búsqueda semántica por atributos y similitud visual mediante embeddings:
+**Arquitectura híbrida** que combina búsqueda semántica por atributos y similitud visual mediante embeddings:
 
-  #### Componentes principales:
+#### Componentes principales:
 
-  - **Validación con Gemini 2.5 Flash**: Detección automática de perros en imágenes subidas con umbral de confianza > 0.7 (responde
-  400 si no detecta un perro o la confianza es insuficiente)
+- **Validación con Gemini 2.5 Flash**: Detección automática de perros en imágenes subidas con umbral de confianza > 0.7 (responde 400 si no detecta un perro o la confianza es insuficiente)
 
-  - **Extracción de atributos estructurados**: Identificación automática de características mediante LLM:
-    - Físicas: raza aproximada, color(es) del pelaje, tamaño (pequeño/mediano/grande), edad estimada
-    - Distintivas: accesorios (collar, arnés, placa), marcas especiales (manchas, cicatrices), tipo de pelaje
-    - Output normalizado: atributos en minúsculas, sin tildes, con guiones bajos
+- **Extracción de atributos estructurados**: Identificación automática de características mediante LLM:
+  - Físicas: raza aproximada, color(es) del pelaje, tamaño (pequeño/mediano/grande), edad estimada
+  - Distintivas: accesorios (collar, arnés, placa), marcas especiales (manchas, cicatrices), tipo de pelaje
+  - Output normalizado: atributos en minúsculas, sin tildes, con guiones bajos
 
-  - **Generación de embeddings multimodales**: Vectores de 1408 dimensiones por imagen usando Vertex AI (`multimodalembedding@001`)
-  para representación visual densa y búsqueda por similitud
+- **Generación de embeddings multimodales**: Vectores de 1408 dimensiones por imagen usando Vertex AI (`multimodalembedding@001`) para representación visual densa y búsqueda por similitud
 
-  - **Motor de búsqueda dual**:
-    - **Búsqueda por atributos**: Similitud de Jaccard entre conjuntos de características extraídas
-    - **Búsqueda visual**: Similitud coseno entre embeddings de imágenes
-    - **Fusión inteligente**: Reciprocal Rank Fusion (RRF) para combinar ambos resultados y maximizar precisión
+- **Motor de búsqueda dual**:
+  - **Búsqueda por atributos**: Similitud de Jaccard entre conjuntos de características extraídas
+  - **Búsqueda visual**: Similitud coseno entre embeddings de imágenes
+  - **Fusión inteligente**: Reciprocal Rank Fusion (RRF) para combinar ambos resultados y maximizar precisión
 
-  - **Filtrado geoespacial**: Cálculo de distancia con fórmula de Haversine y filtrado por radio configurable
+- **Filtrado geoespacial**: Cálculo de distancia con fórmula de Haversine y filtrado por radio configurable
 
-  #### Flujo completo del algoritmo:
+#### Flujo completo del algoritmo:
 
-  ┌─────────────────────────────────────────────────────┐
-  │ 1. Usuario sube foto(s) + descripción opcional      │
-  └─────────────────────┬───────────────────────────────┘
-                        ↓
-  ┌─────────────────────────────────────────────────────┐
-  │ 2. Gemini valida: ¿es un perro? (confianza > 0.7)  │
-  │    → NO: Error 400 "No parece un perro"            │
-  │    → SÍ: Continúa ↓                                 │
-  └─────────────────────┬───────────────────────────────┘
-                        ↓
-  ┌─────────────────────────────────────────────────────┐
-  │ 3. Gemini extrae atributos estructurados            │
-  │    ["labrador", "amarillo", "mediano", "collar"]    │
-  └─────────────────────┬───────────────────────────────┘
-                        ↓
-  ┌─────────────────────────────────────────────────────┐
-  │ 4. Vertex AI genera embedding visual (1408-dim)     │
-  └─────────────────────┬───────────────────────────────┘
-                        ↓
-  ┌─────────────────────────────────────────────────────┐
-  │ 5. BÚSQUEDA PARALELA:                               │
-  │    a) Jaccard Similarity (atributos textuales)      │
-  │       score = |A ∩ B| / |A ∪ B|                     │
-  │    b) Cosine Similarity (embeddings visuales)       │
-  │       cos(θ) = (A·B) / (||A|| × ||B||)              │
-  └─────────────────────┬───────────────────────────────┘
-                        ↓
-  ┌─────────────────────────────────────────────────────┐
-  │ 6. Filtrado geográfico (Haversine + radio km)       │
-  └─────────────────────┬───────────────────────────────┘
-                        ↓
-  ┌─────────────────────────────────────────────────────┐
-  │ 7. Reciprocal Rank Fusion (RRF)                     │
-  │    RRF_score = Σ(1/(60 + rank))                     │
-  │    → Combina resultados de ambas búsquedas          │
-  └─────────────────────┬───────────────────────────────┘
-                        ↓
-  ┌─────────────────────────────────────────────────────┐
-  │ 8. Ranking final: ordenado por RRF + distancia      │
-  │    → Top N resultados con % de similitud            │
-  └─────────────────────────────────────────────────────┘
+1. **Usuario sube foto(s) + descripción opcional**
 
-  **Ventaja del enfoque híbrido**: Si la foto es de mala calidad pero la descripción es precisa (o viceversa), el sistema igual
-  encuentra coincidencias. Los perros que aparecen en ambas listas (similitud visual + atributos) reciben scores superiores,
-  reduciendo falsos positivos.
+2. **Validación con Gemini**: ¿es un perro? (confianza > 0.7)
+   - NO → Error 400 "No parece un perro"
+   - SÍ → Continúa
+
+3. **Extracción de atributos estructurados**
+   - Ejemplo: `["labrador", "amarillo", "mediano", "collar"]`
+
+4. **Generación de embedding visual** (1408 dimensiones)
+   - Vertex AI MultiModal Embeddings
+
+5. **Búsqueda paralela**:
+   - a) Jaccard Similarity (atributos textuales): `score = |A ∩ B| / |A ∪ B|`
+   - b) Cosine Similarity (embeddings visuales): `cos(θ) = (A·B) / (||A|| × ||B||)`
+
+6. **Filtrado geográfico**
+   - Haversine + radio en kilómetros
+
+7. **Fusión con Reciprocal Rank Fusion**
+   - `RRF_score = Σ(1/(60 + rank))`
+   - Combina resultados de ambas búsquedas
+
+8. **Ranking final**
+   - Ordenado por RRF score + distancia
+   - Top N resultados con % de similitud
+
+**Ventaja del enfoque híbrido**: Si la foto es de mala calidad pero la descripción es precisa (o viceversa), el sistema igual encuentra coincidencias. Los perros que aparecen en ambas listas (similitud visual + atributos) reciben scores superiores, reduciendo falsos positivos.
 
 ### Infraestructura
 - Frontend desplegado en Google Cloud Run
