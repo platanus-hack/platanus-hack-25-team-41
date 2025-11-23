@@ -95,8 +95,17 @@ async def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
         db_status = "connected"
+
+        total_sightings = db.query(DogSighting).filter(DogSighting.status == "active").count()
+        with_embeddings = db.query(DogSighting).filter(
+            DogSighting.status == "active",
+            DogSighting.image_embedding.isnot(None)
+        ).count()
+
     except Exception as e:
         db_status = f"error: {str(e)}"
+        total_sightings = 0
+        with_embeddings = 0
 
     return {
         "status": "healthy" if db_status == "connected" else "unhealthy",
@@ -104,6 +113,11 @@ async def health_check(db: Session = Depends(get_db)):
         "gcs": "connected",
         "llm": "dummy",
         "environment": settings.environment,
+        "embeddings": {
+            "total_sightings": total_sightings,
+            "with_embeddings": with_embeddings,
+            "percentage": round(with_embeddings / total_sightings * 100, 1) if total_sightings > 0 else 0
+        }
     }
 
 
