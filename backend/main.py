@@ -17,6 +17,7 @@ from app.schemas.dog_sighting import (
     DogSightingResponse,
     DogSightingSearchResult,
     DogSightingListResponse,
+    CompleteDraftRequest,
 )
 from app.schemas.search import SearchRequest, SearchResponse
 from app.services.storage_service import storage_service
@@ -205,6 +206,88 @@ async def create_sighting(
         )
 
 
+@app.post(
+    "/api/sightings/draft",
+    response_model=DogSightingResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Sightings"]
+)
+async def create_draft_sighting(
+    sighting: DogSightingCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Create a draft dog sighting (for bot usage).
+
+    - Provide 1-3 base64-encoded images of the found dog (required)
+    - Optionally provide description
+    - Location is NOT required (will be added later)
+    - LLM automatically extracts dog attributes
+    - Returns draft ID for sharing via bot
+    """
+    try:
+        print(f"📤 Converting {len(sighting.images)} base64 images...")
+        images = convert_base64_to_upload_files(sighting.images)
+
+        print(f"📤 Uploading {len(images)} images to GCS...")
+        image_urls = await storage_service.upload_multiple_images(images)
+        print(f"✅ Images uploaded: {image_urls}")
+
+        print("🤖 Extracting dog attributes with LLM...")
+        llm_result = await dog_description(images, sighting.description)
+
+        if not llm_result or llm_result.get("es_perro") == False:
+            for url in image_urls:
+                await storage_service.delete_image(url)
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Las imágenes no parecen mostrar un perro. Por favor, sube imágenes claras de un perro."
+            )
+
+        attributes = llm_result.get("atributos", [])
+        print(f"✅ Extracted attributes: {attributes}")
+
+        print("🔢 Generating image embedding...")
+        image_embedding = await embedding_service.generate_embedding(image_urls[0])
+        if image_embedding is not None:
+            print(f"✅ Embedding generated: {len(image_embedding)} dimensions")
+        else:
+            print("⚠️  Failed to generate embedding, continuing without it")
+
+        new_sighting = DogSighting(
+            image_urls=image_urls,
+            user_description=sighting.description,
+            attributes=attributes,
+            image_embedding=image_embedding,
+            latitude=sighting.latitude,
+            longitude=sighting.longitude,
+            location_address=sighting.location_address,
+            neighborhood=sighting.neighborhood,
+            contact_name=sighting.contact_name,
+            contact_phone=sighting.contact_phone,
+            contact_email=sighting.contact_email,
+            status="draft"
+        )
+
+        db.add(new_sighting)
+        db.commit()
+        db.refresh(new_sighting)
+
+        print(f"✅ Draft sighting created with ID: {new_sighting.id}")
+
+        return DogSightingResponse.from_orm_model(new_sighting)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating draft sighting: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating draft sighting: {str(e)}"
+        )
+
+
 @app.get(
     "/api/sightings/search",
     response_model=SearchResponse,
@@ -380,6 +463,68 @@ async def get_sighting(sighting_id: str, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting sighting: {str(e)}"
+        )
+
+
+@app.put(
+    "/api/sightings/{sighting_id}/complete",
+    response_model=DogSightingResponse,
+    tags=["Sightings"]
+)
+async def complete_draft_sighting(
+    sighting_id: str,
+    completion: CompleteDraftRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Complete a draft sighting by adding location.
+
+    - Adds location to a draft sighting
+    - Changes status from 'draft' to 'active'
+    - Returns the completed sighting
+    """
+    try:
+        sighting = db.query(DogSighting).filter(
+            DogSighting.id == uuid.UUID(sighting_id)
+        ).first()
+
+        if not sighting:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sighting not found"
+            )
+
+        if sighting.status != "draft":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only draft sightings can be completed"
+            )
+
+        sighting.latitude = completion.latitude
+        sighting.longitude = completion.longitude
+        sighting.location_address = completion.location_address
+        sighting.neighborhood = completion.neighborhood
+        sighting.status = "active"
+
+        db.commit()
+        db.refresh(sighting)
+
+        print(f"✅ Draft sighting {sighting_id} completed and activated")
+
+        return DogSightingResponse.from_orm_model(sighting)
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid sighting ID format"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error completing draft: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error completing draft: {str(e)}"
         )
 
 

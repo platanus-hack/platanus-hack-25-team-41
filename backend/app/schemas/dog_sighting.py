@@ -89,3 +89,11 @@ class DogSightingListResponse(BaseModel):
     sightings: List[DogSightingResponse]
     total: int
     has_more: bool
+
+
+class CompleteDraftRequest(BaseModel):
+    """Schema for completing a draft sighting with location."""
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    location_address: Optional[str] = None
+    neighborhood: Optional[str] = None
