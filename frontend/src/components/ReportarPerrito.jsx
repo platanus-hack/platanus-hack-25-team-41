@@ -35,11 +35,69 @@ export const ReportarPerrito = () => {
   const [error, setError] = useState(null)
   const [mostrarMapa, setMostrarMapa] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [draftId, setDraftId] = useState(null)
+  const [cargandoDraft, setCargandoDraft] = useState(false)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
     obtenerUbicacion()
+    checkDraftParam()
   }, [])
+
+  const checkDraftParam = async () => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const draft = urlParams.get('draft')
+
+    if (draft) {
+      setCargandoDraft(true)
+      try {
+        const sighting = await sightingsService.getSightingById(draft)
+
+        if (sighting.status !== 'draft') {
+          setError('Este avistamiento ya fue completado')
+          return
+        }
+
+        setDraftId(draft)
+
+        if (sighting.image_urls && sighting.image_urls[0]) {
+          setImagenPreview(sighting.image_urls[0])
+        }
+
+        const attributes = sighting.attributes || []
+        const userDesc = sighting.user_description || ''
+
+        const newFormData = { ...formData }
+
+        attributes.forEach(attr => {
+          const lowerAttr = attr.toLowerCase()
+          if (lowerAttr.includes('pequeño')) newFormData.tamano = 'pequeño'
+          else if (lowerAttr.includes('mediano')) newFormData.tamano = 'mediano'
+          else if (lowerAttr.includes('grande')) newFormData.tamano = 'grande'
+
+          if (lowerAttr.includes('herido')) newFormData.estado = 'herido'
+          else if (lowerAttr.includes('desnutrido')) newFormData.estado = 'desnutrido'
+
+          const colorMatch = lowerAttr.match(/(negro|blanco|café|marrón|gris|dorado|beige|tricolor)/i)
+          if (colorMatch && !newFormData.color) {
+            newFormData.color = colorMatch[0]
+          }
+        })
+
+        if (userDesc) {
+          newFormData.notas = userDesc
+        }
+
+        setFormData(newFormData)
+
+      } catch (err) {
+        console.error('Error cargando draft:', err)
+        setError('No se pudo cargar el reporte. Por favor, intenta de nuevo.')
+      } finally {
+        setCargandoDraft(false)
+      }
+    }
+  }
 
   const obtenerUbicacion = () => {
     setCargandoUbicacion(true)
@@ -105,7 +163,7 @@ export const ReportarPerrito = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!imagen) {
+    if (!draftId && !imagen) {
       setError("Por favor, sube una foto del perrito.")
       return
     }
@@ -119,31 +177,38 @@ export const ReportarPerrito = () => {
     setError(null)
 
     try {
-      // Convertir imagen a base64
-      const imageBase64 = await imageToBase64(imagen)
+      if (draftId) {
+        const completionData = {
+          latitude: ubicacion.lat,
+          longitude: ubicacion.lng,
+        }
 
-      // Construir descripción combinando los campos del formulario
-      const descripcionParts = []
-      if (formData.tamano) descripcionParts.push(`Tamaño: ${formData.tamano}`)
-      if (formData.color) descripcionParts.push(`Color: ${formData.color}`)
-      if (formData.estado) descripcionParts.push(`Estado: ${formData.estado}`)
-      if (formData.notas) descripcionParts.push(formData.notas)
+        console.log("[ReportarPerrito] Completando draft:", draftId, completionData)
+        const response = await sightingsService.completeDraft(draftId, completionData)
+        console.log("[ReportarPerrito] Draft completado:", response)
+      } else {
+        const imageBase64 = await imageToBase64(imagen)
 
-      const description = descripcionParts.join(". ") || null
+        const descripcionParts = []
+        if (formData.tamano) descripcionParts.push(`Tamaño: ${formData.tamano}`)
+        if (formData.color) descripcionParts.push(`Color: ${formData.color}`)
+        if (formData.estado) descripcionParts.push(`Estado: ${formData.estado}`)
+        if (formData.notas) descripcionParts.push(formData.notas)
 
-      // Preparar datos para el API
-      const sightingData = {
-        images: [imageBase64],
-        description,
-        latitude: ubicacion.lat,
-        longitude: ubicacion.lng,
+        const description = descripcionParts.join(". ") || null
+
+        const sightingData = {
+          images: [imageBase64],
+          description,
+          latitude: ubicacion.lat,
+          longitude: ubicacion.lng,
+        }
+
+        console.log("[ReportarPerrito] Enviando reporte:", sightingData)
+        const response = await sightingsService.createSighting(sightingData)
+        console.log("[ReportarPerrito] Respuesta del servidor:", response)
       }
 
-      console.log("[ReportarPerrito] Enviando reporte:", sightingData)
-
-      const response = await sightingsService.createSighting(sightingData)
-
-      console.log("[ReportarPerrito] Respuesta del servidor:", response)
       setEnviado(true)
     } catch (err) {
       console.error("[ReportarPerrito] Error al enviar reporte:", err)
@@ -205,6 +270,17 @@ export const ReportarPerrito = () => {
     )
   }
 
+  if (cargandoDraft) {
+    return (
+      <div className="min-h-screen pt-24 pb-12 px-4 bg-gradient-to-b from-white to-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-[#156d95] animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Cargando información del perrito...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen pt-24 pb-12 px-4 bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-lg mx-auto">
@@ -213,9 +289,14 @@ export const ReportarPerrito = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Reportar un perrito</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            {draftId ? "Completar reporte" : "Reportar un perrito"}
+          </h1>
           <p className="text-gray-600">
-            Ayúdanos a ubicar perritos callejeros para que puedan ser rescatados
+            {draftId
+              ? "Agrega la ubicación para completar el reporte"
+              : "Ayúdanos a ubicar perritos callejeros para que puedan ser rescatados"
+            }
           </p>
         </motion.div>
 
@@ -258,16 +339,18 @@ export const ReportarPerrito = () => {
                   alt="Preview"
                   className="w-full h-64 object-cover rounded-xl"
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImagen(null)
-                    setImagenPreview(null)
-                  }}
-                  className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-600" />
-                </button>
+                {!draftId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImagen(null)
+                      setImagenPreview(null)
+                    }}
+                    className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="w-4 h-4 text-gray-600" />
+                  </button>
+                )}
               </div>
             ) : (
               <button

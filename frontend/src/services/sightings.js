@@ -32,4 +32,10 @@ export const sightingsService = {
     })
     return response.data
   },
+
+  // Completar un avistamiento draft con ubicación
+  completeDraft: async (sightingId, data) => {
+    const response = await api.put(`/api/sightings/${sightingId}/complete`, data)
+    return response.data
+  },
 }
