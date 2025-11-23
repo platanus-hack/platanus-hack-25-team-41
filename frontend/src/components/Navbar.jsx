@@ -60,7 +60,7 @@ export const Navbar = () => {
                   fontWeight: "800",
                 }}
               >
-                DogFinder
+                BusCachorro
               </span>
             </Link>
           </div>
@@ -132,18 +132,6 @@ export const Navbar = () => {
                   <span>{link.name}</span>
                 </Link>
               ))}
-              <div className="pt-4 border-t border-border">
-                <Link
-                  href="/reportar"
-                  onClick={closeMobileMenu}
-                  className="block w-full text-center bg-[#156d95] text-white px-[18px] py-[15px] rounded-full text-base font-semibold hover:bg-[#156d95]/90 transition-all duration-200"
-                  style={{
-                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                  }}
-                >
-                  <span>Comenzar ahora</span>
-                </Link>
-              </div>
             </div>
           </motion.div>
         )}

@@ -134,20 +134,6 @@ const getStatusColor = (estado) => {
   }
 }
 
-const getStatusLabel = (estado) => {
-  switch (estado) {
-    case "pendiente":
-      return "Pendiente"
-    case "en_proceso":
-      return "En proceso"
-    case "rescatado":
-      return "Rescatado"
-    case "urgente":
-      return "Urgente"
-    default:
-      return estado
-  }
-}
 
 // Calcula distancia en km entre dos puntos
 const calcularDistancia = (lat1, lng1, lat2, lng2) => {
@@ -322,7 +308,6 @@ function MapClickHandler({ onMapClick }) {
 
 export const MapaPerritos = () => {
   const [selectedDog, setSelectedDog] = useState(null)
-  const [filterStatus, setFilterStatus] = useState("todos")
   const [filterLocation, setFilterLocation] = useState("todos") // "todos", "cercanos", "visible"
   const [userLocation, setUserLocation] = useState(null)
   const [capturedBounds, setCapturedBounds] = useState(null) // Bounds capturados manualmente
@@ -421,14 +406,18 @@ export const MapaPerritos = () => {
     }
   }, [])
 
+  // Centrar mapa en la ubicación del usuario
+  const handleCenterOnUser = useCallback(() => {
+    if (mapRef.current && userLocation) {
+      mapRef.current.flyTo([userLocation.lat, userLocation.lng], 15, {
+        duration: 1
+      })
+    }
+  }, [userLocation])
+
   // Filtrar perros (usa sightings de la API, sampleDogs solo como fallback en error)
   const dogsData = error ? sampleDogs : sightings
   const filteredDogs = dogsData.filter((dog) => {
-    // Filtro por estado
-    if (filterStatus !== "todos" && dog.estado !== filterStatus) {
-      return false
-    }
-
     // Filtro por ubicación
     if (filterLocation === "cercanos" && userLocation) {
       const distancia = calcularDistancia(userLocation.lat, userLocation.lng, dog.lat, dog.lng)
@@ -501,9 +490,9 @@ export const MapaPerritos = () => {
           >
             <ChevronDown className="w-4 h-4 text-gray-500" />
           </motion.div>
-          {(filterStatus !== "todos" || filterLocation !== "todos") && (
+          {filterLocation !== "todos" && (
             <span className="bg-[#156d95] text-white text-xs px-2 py-0.5 rounded-full">
-              {(filterStatus !== "todos" ? 1 : 0) + (filterLocation !== "todos" ? 1 : 0)}
+              1
             </span>
           )}
         </motion.button>
@@ -529,26 +518,6 @@ export const MapaPerritos = () => {
                 >
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
-              </div>
-
-              {/* Filtro por estado */}
-              <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-2 font-medium">Por estado:</p>
-                <div className="flex flex-wrap gap-2">
-                  {["todos", "urgente", "pendiente", "en_proceso", "rescatado"].map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => setFilterStatus(status)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                        filterStatus === status
-                          ? "bg-[#156d95] text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      {status === "todos" ? "Todos" : getStatusLabel(status)}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Filtro por ubicación */}
@@ -720,6 +689,19 @@ export const MapaPerritos = () => {
           </Marker>
         ))}
       </MapContainer>
+
+      {/* Botón para centrar en ubicación del usuario */}
+      {userLocation && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          onClick={handleCenterOnUser}
+          className="fixed bottom-8 left-4 z-40 bg-white rounded-full shadow-lg p-3 hover:bg-gray-50 transition-colors"
+          title="Ir a mi ubicación"
+        >
+          <Locate className="w-6 h-6 text-[#156d95]" />
+        </motion.button>
+      )}
 
       {/* Legend - Solo muestra leyenda de probabilidad cuando hay perro seleccionado */}
       <AnimatePresence>
