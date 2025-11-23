@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, MapPin, Calendar, Heart, X, Camera, Loader2, Navigation, PawPrint, Clock, Maximize2, Minimize2 } from "lucide-react"
+import { Search, MapPin, Calendar, Heart, X, Camera, Loader2, Navigation, PawPrint, Clock, Maximize2, Minimize2, Phone, AlertCircle } from "lucide-react"
 import { sightingsService } from "@/services/sightings"
 import dynamic from "next/dynamic"
 
@@ -44,6 +44,7 @@ export const BuscarPerrito = () => {
   const [perritoSeleccionado, setPerritoSeleccionado] = useState(null)
   const [favoritos, setFavoritos] = useState([])
   const [mapaExpandido, setMapaExpandido] = useState(false)
+  const [mostrarContacto, setMostrarContacto] = useState(false)
   const fileInputRef = useRef(null)
 
   // Obtener ubicación del usuario al montar el componente
@@ -149,11 +150,15 @@ export const BuscarPerrito = () => {
       console.log("[BuscarPerrito] Resultados:", response)
 
       // Transformar resultados al formato del componente
-      const resultadosTransformados = (response.results || response.sightings || []).map((s) => {
+      const resultadosTransformados = (response.results || response.sightings || []).map((s, index) => {
         // Extraer fecha y hora del created_at
         const createdAt = s.created_at ? new Date(s.created_at) : new Date()
         const fecha = createdAt.toISOString().split("T")[0]
         const hora = createdAt.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })
+
+        // TODO: Cuando la API lo soporte, usar s.contact_phone directamente
+        // Por ahora, usar datos dummy para demostración (algunos con teléfono, otros sin)
+        const telefonoDummy = index % 2 === 0 ? "+56912345678" : null
 
         return {
           id: s.id,
@@ -173,6 +178,7 @@ export const BuscarPerrito = () => {
           lat: s.location?.lat,
           lng: s.location?.lng,
           contacto: s.contact_info,
+          telefonoContacto: s.contact_phone || telefonoDummy, // Teléfono de contacto (de API o dummy)
         }
       })
 
@@ -425,7 +431,10 @@ export const BuscarPerrito = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-              onClick={() => setPerritoSeleccionado(null)}
+              onClick={() => {
+                setPerritoSeleccionado(null)
+                setMostrarContacto(false)
+              }}
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -441,7 +450,10 @@ export const BuscarPerrito = () => {
                     className="w-full h-64 object-cover"
                   />
                   <button
-                    onClick={() => setPerritoSeleccionado(null)}
+                    onClick={() => {
+                      setPerritoSeleccionado(null)
+                      setMostrarContacto(false)
+                    }}
                     className="absolute top-4 right-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-100"
                   >
                     <X className="w-5 h-5 text-gray-600" />
@@ -526,27 +538,110 @@ export const BuscarPerrito = () => {
                     />
                   </div>
 
-                  <div className="flex gap-3">
-                    <button className="flex-1 bg-[#156d95] text-white py-3 px-6 rounded-full font-medium hover:bg-[#125a7d] transition-colors">
-                      Es mi mascota
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleFavorito(perritoSeleccionado.id)
-                      }}
-                      className="w-12 h-12 border border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors"
-                    >
-                      <Heart
-                        className={`w-5 h-5 ${
-                          favoritos.includes(perritoSeleccionado.id)
-                            ? "fill-red-500 text-red-500"
-                            : "text-gray-400"
-                        }`}
-                      />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setMostrarContacto(true)}
+                    className="w-full bg-[#156d95] text-white py-3 px-6 rounded-full font-medium hover:bg-[#125a7d] transition-colors"
+                  >
+                    Es mi mascota
+                  </button>
                 </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Modal de contacto - fuera del modal de detalle para evitar problemas de z-index */}
+        <AnimatePresence>
+          {mostrarContacto && perritoSeleccionado && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4"
+              onClick={() => setMostrarContacto(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-2xl max-w-sm w-full p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {perritoSeleccionado.telefonoContacto ? (
+                  // Tiene teléfono de contacto
+                  <>
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Phone className="w-8 h-8 text-green-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                      ¡Contacta al reportante!
+                    </h3>
+                    <p className="text-gray-600 text-center mb-6">
+                      La persona que reportó este avistamiento dejó su número para ser contactada.
+                    </p>
+                    <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                      <p className="text-xs text-gray-500 mb-1">Número de contacto</p>
+                      <p className="text-xl font-bold text-gray-800 tracking-wide">
+                        {perritoSeleccionado.telefonoContacto.replace(/(\+56)(\d)(\d{4})(\d{4})/, "$1 $2 $3 $4")}
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <a
+                        href={`tel:${perritoSeleccionado.telefonoContacto}`}
+                        className="flex-1 bg-[#156d95] text-white py-3 px-4 rounded-full font-medium hover:bg-[#125a7d] transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Phone className="w-4 h-4" />
+                        Llamar
+                      </a>
+                      <a
+                        href={`https://wa.me/${perritoSeleccionado.telefonoContacto.replace(/\+/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 bg-green-500 text-white py-3 px-4 rounded-full font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                        WhatsApp
+                      </a>
+                    </div>
+                    <button
+                      onClick={() => setMostrarContacto(false)}
+                      className="w-full mt-3 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                  </>
+                ) : (
+                  // No tiene teléfono de contacto
+                  <>
+                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <AlertCircle className="w-8 h-8 text-amber-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                      Sin información de contacto
+                    </h3>
+                    <p className="text-gray-600 text-center mb-6">
+                      Lamentablemente, la persona que reportó este avistamiento no dejó un número de contacto.
+                    </p>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                      <p className="text-sm text-amber-800">
+                        <strong>Sugerencias:</strong>
+                      </p>
+                      <ul className="text-sm text-amber-700 mt-2 space-y-1 list-disc list-inside">
+                        <li>Visita el área donde fue avistado</li>
+                        <li>Comparte la búsqueda en redes sociales</li>
+                        <li>Coloca carteles en la zona</li>
+                      </ul>
+                    </div>
+                    <button
+                      onClick={() => setMostrarContacto(false)}
+                      className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-full font-medium hover:bg-gray-200 transition-colors"
+                    >
+                      Entendido
+                    </button>
+                  </>
+                )}
               </motion.div>
             </motion.div>
           )}

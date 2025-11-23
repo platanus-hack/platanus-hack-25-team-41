@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Camera, MapPin, Upload, Send, X, CheckCircle, AlertCircle, Navigation, Loader2 } from "lucide-react"
+import { Camera, MapPin, Upload, Send, X, CheckCircle, AlertCircle, Navigation, Loader2, Phone } from "lucide-react"
 import dynamic from "next/dynamic"
 import { sightingsService } from "@/services/sightings"
 
@@ -27,6 +27,9 @@ export const ReportarPerrito = () => {
     estado: "saludable",
     notas: "",
   })
+  const [aceptaContacto, setAceptaContacto] = useState(false)
+  const [telefono, setTelefono] = useState("")
+  const [telefonoError, setTelefonoError] = useState(null)
   const [imagen, setImagen] = useState(null)
   const [imagenPreview, setImagenPreview] = useState(null)
   const [ubicacion, setUbicacion] = useState(null)
@@ -138,6 +141,46 @@ export const ReportarPerrito = () => {
     setUbicacion(nuevaUbicacion)
   }
 
+  // Formatear teléfono chileno: +56 9 XXXX XXXX
+  const formatearTelefono = (valor) => {
+    // Remover todo excepto números
+    const soloNumeros = valor.replace(/\D/g, "")
+
+    // Si empieza con 56, removerlo para el formateo
+    let numeros = soloNumeros
+    if (numeros.startsWith("56")) {
+      numeros = numeros.slice(2)
+    }
+
+    // Limitar a 9 dígitos (el número sin código de país)
+    numeros = numeros.slice(0, 9)
+
+    // Formatear como +56 9 XXXX XXXX
+    if (numeros.length === 0) return ""
+    if (numeros.length <= 1) return `+56 ${numeros}`
+    if (numeros.length <= 5) return `+56 ${numeros.slice(0, 1)} ${numeros.slice(1)}`
+    return `+56 ${numeros.slice(0, 1)} ${numeros.slice(1, 5)} ${numeros.slice(5)}`
+  }
+
+  const handleTelefonoChange = (e) => {
+    const valorFormateado = formatearTelefono(e.target.value)
+    setTelefono(valorFormateado)
+
+    // Validar que tenga 9 dígitos
+    const soloNumeros = valorFormateado.replace(/\D/g, "")
+    if (soloNumeros.length > 0 && soloNumeros.length < 11) {
+      setTelefonoError("El número debe tener 9 dígitos")
+    } else {
+      setTelefonoError(null)
+    }
+  }
+
+  const validarTelefono = () => {
+    if (!aceptaContacto) return true
+    const soloNumeros = telefono.replace(/\D/g, "")
+    return soloNumeros.length === 11 // 56 + 9 dígitos
+  }
+
   const handleImagenChange = (e) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -173,6 +216,11 @@ export const ReportarPerrito = () => {
       return
     }
 
+    if (aceptaContacto && !validarTelefono()) {
+      setError("Por favor, ingresa un número de teléfono válido.")
+      return
+    }
+
     setEnviando(true)
     setError(null)
 
@@ -202,6 +250,7 @@ export const ReportarPerrito = () => {
           description,
           latitude: ubicacion.lat,
           longitude: ubicacion.lng,
+          ...(aceptaContacto && telefono && { contact_phone: telefono.replace(/\s/g, "") }),
         }
 
         console.log("[ReportarPerrito] Enviando reporte:", sightingData)
@@ -232,6 +281,9 @@ export const ReportarPerrito = () => {
     setEnviado(false)
     setError(null)
     setMostrarMapa(false)
+    setAceptaContacto(false)
+    setTelefono("")
+    setTelefonoError(null)
     obtenerUbicacion()
   }
 
@@ -513,6 +565,78 @@ export const ReportarPerrito = () => {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#156d95] focus:border-transparent outline-none transition-all resize-none"
                 />
               </div>
+            </div>
+          </motion.div>
+
+          {/* Contacto */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
+          >
+            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <Phone className="w-5 h-5 text-[#156d95]" />
+              Información de contacto
+            </h3>
+
+            <div className="space-y-4">
+              {/* Checkbox de aceptar contacto */}
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative flex items-center justify-center mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={aceptaContacto}
+                    onChange={(e) => {
+                      setAceptaContacto(e.target.checked)
+                      if (!e.target.checked) {
+                        setTelefono("")
+                        setTelefonoError(null)
+                      }
+                    }}
+                    className="w-5 h-5 rounded border-gray-300 text-[#156d95] focus:ring-[#156d95] focus:ring-offset-0 cursor-pointer"
+                  />
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+                    Acepto ser contactado si este perrito es la mascota de alguien
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tu número solo será compartido con el posible dueño de la mascota
+                  </p>
+                </div>
+              </label>
+
+              {/* Campo de teléfono (solo visible si acepta contacto) */}
+              {aceptaContacto && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Número de celular *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={telefono}
+                      onChange={handleTelefonoChange}
+                      placeholder="+56 9 1234 5678"
+                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[#156d95] focus:border-transparent outline-none transition-all ${
+                        telefonoError ? "border-red-300 bg-red-50" : "border-gray-200"
+                      }`}
+                    />
+                  </div>
+                  {telefonoError && (
+                    <p className="text-xs text-red-500 mt-1">{telefonoError}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    Formato: +56 9 XXXX XXXX
+                  </p>
+                </motion.div>
+              )}
             </div>
           </motion.div>
 
