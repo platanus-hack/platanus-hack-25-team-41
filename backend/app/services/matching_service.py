@@ -283,11 +283,11 @@ class MatchingService:
                 db, search_embedding, latitude, longitude, radius_km, limit
             )
 
-        if attribute_results and vector_results:
+        if len(attribute_results) > 0 and len(vector_results) > 0:
             return self.merge_search_results(attribute_results, vector_results, limit)
-        elif vector_results:
+        elif len(vector_results) > 0:
             return vector_results
-        elif attribute_results:
+        elif len(attribute_results) > 0:
             return attribute_results
         else:
             return []
