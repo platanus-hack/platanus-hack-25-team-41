@@ -60,7 +60,7 @@ export const Navbar = () => {
                   fontWeight: "800",
                 }}
               >
-                BusCachorro
+                Bus<b className="text-[#744df6]">Cachorros</b>
               </span>
             </Link>
           </div>
