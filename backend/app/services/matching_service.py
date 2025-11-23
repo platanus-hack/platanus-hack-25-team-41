@@ -192,7 +192,14 @@ class MatchingService:
             if search_embedding and candidate.image_embedding:
                 vector_score = self.calculate_cosine_similarity(search_embedding, candidate.image_embedding)
 
-            combined_score = (attribute_weight * attribute_score) + (vector_weight * vector_score)
+            if search_embedding and search_attributes:
+                combined_score = (attribute_weight * attribute_score) + (vector_weight * vector_score)
+            elif search_embedding:
+                combined_score = vector_score
+            elif search_attributes:
+                combined_score = attribute_score
+            else:
+                combined_score = 0.0
 
             if combined_score < settings.min_match_score:
                 continue
