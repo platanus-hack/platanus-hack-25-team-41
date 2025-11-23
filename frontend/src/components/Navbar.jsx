@@ -7,15 +7,15 @@ import Link from "next/link"
 
 const navigationLinks = [
   {
-    name: "Mapa de perritos",
+    name: "Mapa",
     href: "/map",
   },
   {
-    name: "Reportar perrito",
+    name: "Encontré un perro",
     href: "/reportar",
   },
   {
-    name: "Buscar perrito",
+    name: "Buscar mi perro",
     href: "/buscar",
   },
 ]

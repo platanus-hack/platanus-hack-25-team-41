@@ -363,12 +363,12 @@ export const ReportarPerrito = () => {
           className="text-center mb-8"
         >
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            {draftId ? "Completar reporte" : "Reportar un perrito"}
+            {draftId ? "Completar reporte" : "Encontré un perrito"}
           </h1>
           <p className="text-gray-600">
             {draftId
               ? "Agrega la ubicación para completar el reporte"
-              : "Ayúdanos a ubicar perritos callejeros para que puedan ser rescatados"
+              : "Ayúdanos a ubicar perritos callejeros para que puedan ser rescatados."
             }
           </p>
         </motion.div>

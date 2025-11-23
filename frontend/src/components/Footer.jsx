@@ -21,7 +21,7 @@ export const Footer = () => {
               className="text-xl font-semibold text-[#202020]"
               style={{ fontFamily: "Figtree", fontWeight: "600" }}
             >
-              DogFinder
+              BusCachorros
             </h3>
             <nav className="flex items-center gap-6">
               <Link
@@ -49,7 +49,7 @@ export const Footer = () => {
           </div>
 
           <p className="text-sm text-[#666666]" style={{ fontFamily: "Figtree" }}>
-            © {currentYear} DogFinder
+            © {currentYear} BusCachorros
           </p>
         </motion.div>
       </div>
