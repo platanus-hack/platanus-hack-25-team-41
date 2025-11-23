@@ -1,6 +1,6 @@
 """
 Telegram Bot for Lost Dogs Finder
-Allows users to report dog sightings via Telegram.
+Allows users to report dog sightings via Telegram..
 """
 import os
 import base64
