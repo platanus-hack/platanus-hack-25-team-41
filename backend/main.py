@@ -604,6 +604,7 @@ async def get_map_sightings(db: Session = Depends(get_db)):
                 "longitude": sighting.longitude,
                 "photo": sighting.image_urls[0] if sighting.image_urls else None,
                 "description": sighting.user_description or ", ".join(sighting.attributes[:3]) if sighting.attributes else "Perro encontrado",
+                "timestamp": sighting.created_at
             }
             for sighting in sightings
         ]
