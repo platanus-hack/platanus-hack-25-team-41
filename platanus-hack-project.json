@@ -1,4 +1,5 @@
 {
-  "project-name": "<FILL THIS>",
-  "project-description-spanish": "<FILL THIS>"
+  "project-name": "BusCachorros",
+  "project-description-spanish": "Plataforma colaborativa para reportar y buscar perros callejeros mediante reconocimiento de imagen y geolocalización.",
+  "deploy-url": "https://frontend-849537710972.us-central1.run.app"
 }
