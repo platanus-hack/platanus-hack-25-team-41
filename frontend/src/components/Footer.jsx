@@ -21,7 +21,7 @@ export const Footer = () => {
               className="text-xl font-semibold text-[#202020]"
               style={{ fontFamily: "Figtree", fontWeight: "600" }}
             >
-              BusCachorros
+              Bus<b className="text-[#744df6]">Cachorros</b>
             </h3>
             <nav className="flex items-center gap-6">
               <Link
@@ -36,14 +36,14 @@ export const Footer = () => {
                 className="text-sm text-[#666666] hover:text-[#202020] transition-colors duration-150"
                 style={{ fontFamily: "Figtree" }}
               >
-                Reportar
+                Encontré un perro
               </Link>
               <Link
                 href="/buscar"
                 className="text-sm text-[#666666] hover:text-[#202020] transition-colors duration-150"
                 style={{ fontFamily: "Figtree" }}
               >
-                Buscar
+                Encontrar mi perro
               </Link>
             </nav>
           </div>
