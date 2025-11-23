@@ -27,6 +27,3 @@ with sync_playwright() as p:
         page.wait_for_timeout(1000)
         cont+=1
     browser.close()
-#+56954203378
-#cachulo1
-#https://www.instagram.com/perritos_encontrados_santiago/
