@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - update-map-sightings
+      - add-vs
     paths:
       - 'backend/**'
 

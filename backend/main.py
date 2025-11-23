@@ -22,6 +22,7 @@ from app.schemas.search import SearchRequest, SearchResponse
 from app.services.storage_service import storage_service
 from app.services.llm_service import dog_description, extract_search_attributes
 from app.services.matching_service import matching_service
+from app.services.embedding_service import embedding_service
 from app.utils.base64_handler import convert_base64_to_upload_files
 
 
@@ -94,8 +95,17 @@ async def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
         db_status = "connected"
+
+        total_sightings = db.query(DogSighting).filter(DogSighting.status == "active").count()
+        with_embeddings = db.query(DogSighting).filter(
+            DogSighting.status == "active",
+            DogSighting.image_embedding.isnot(None)
+        ).count()
+
     except Exception as e:
         db_status = f"error: {str(e)}"
+        total_sightings = 0
+        with_embeddings = 0
 
     return {
         "status": "healthy" if db_status == "connected" else "unhealthy",
@@ -103,6 +113,11 @@ async def health_check(db: Session = Depends(get_db)):
         "gcs": "connected",
         "llm": "dummy",
         "environment": settings.environment,
+        "embeddings": {
+            "total_sightings": total_sightings,
+            "with_embeddings": with_embeddings,
+            "percentage": round(with_embeddings / total_sightings * 100, 1) if total_sightings > 0 else 0
+        }
     }
 
 
@@ -150,10 +165,18 @@ async def create_sighting(
         attributes = llm_result.get("atributos", [])
         print(f"✅ Extracted attributes: {attributes}")
 
+        print("🔢 Generating image embedding...")
+        image_embedding = await embedding_service.generate_embedding(image_urls[0])
+        if image_embedding is not None:
+            print(f"✅ Embedding generated: {len(image_embedding)} dimensions")
+        else:
+            print("⚠️  Failed to generate embedding, continuing without it")
+
         new_sighting = DogSighting(
             image_urls=image_urls,
             user_description=sighting.description,
             attributes=attributes,
+            image_embedding=image_embedding,
             latitude=sighting.latitude,
             longitude=sighting.longitude,
             location_address=sighting.location_address,
@@ -216,9 +239,10 @@ async def search_sightings(
 
         print(f"🔍 Search attributes: {search_attrs}")
 
-        results = matching_service.find_matches(
+        results = matching_service.find_matches_with_vectors(
             db=db,
             search_attributes=search_attrs,
+            search_embedding=None,
             latitude=latitude,
             longitude=longitude,
             radius_km=radius,
@@ -286,9 +310,17 @@ async def search_sightings_with_image(
 
         print(f"🔍 Search attributes: {search_attrs}")
 
-        results = matching_service.find_matches(
+        search_embedding = None
+        if images:
+            print("🔢 Generating search embedding from image...")
+            search_embedding = await embedding_service.generate_embedding(search_request.images[0])
+            if search_embedding is not None:
+                print(f"✅ Search embedding generated")
+
+        results = matching_service.find_matches_with_vectors(
             db=db,
             search_attributes=search_attrs,
+            search_embedding=search_embedding,
             latitude=search_request.latitude,
             longitude=search_request.longitude,
             radius_km=search_request.radius,
