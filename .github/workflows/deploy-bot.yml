@@ -59,16 +59,16 @@ jobs:
             --min-instances=1 \
             --max-instances=1
 
-          # Get the service URL
+          # Get the actual service URL after deployment
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
             --format 'value(status.url)')
 
-          echo "Service URL: ${SERVICE_URL}"
+          echo "Service deployed at: ${SERVICE_URL}"
 
-          # Update with WEBHOOK_URL
+          # Update with WEBHOOK_URL for next deployment
           gcloud run services update ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
             --update-env-vars="WEBHOOK_URL=${SERVICE_URL}"
 
-          echo "Bot deployed successfully at ${SERVICE_URL}"
+          echo "Webhook URL configured: ${SERVICE_URL}"

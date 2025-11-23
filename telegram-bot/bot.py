@@ -1,6 +1,6 @@
 """
 Telegram Bot for Lost Dogs Finder
-Allows users to report dog sightings via Telegram..
+Allows users to report dog sightings via Telegram.
 """
 import os
 import base64
@@ -176,17 +176,25 @@ def main():
     if port:
         # Webhook mode for Cloud Run
         webhook_url = os.getenv("WEBHOOK_URL")
+
+        # Construct webhook URL from Cloud Run metadata if not provided
         if not webhook_url:
-            raise ValueError("WEBHOOK_URL must be set when running on Cloud Run")
+            logger.warning("WEBHOOK_URL not set. Server will start but webhook will be configured on update.")
+            webhook_url = None
 
-        logger.info(f"Starting webhook on port {port}")
-        logger.info(f"Webhook URL: {webhook_url}")
+        logger.info(f"Starting webhook server on 0.0.0.0:{port}")
+        if webhook_url:
+            logger.info(f"Webhook URL: {webhook_url}/{TELEGRAM_BOT_TOKEN}")
+        else:
+            logger.info(f"Webhook will be configured after deployment")
 
+        # Run webhook server
+        # The server responds on the port which satisfies Cloud Run health checks
         application.run_webhook(
             listen="0.0.0.0",
             port=int(port),
             url_path=TELEGRAM_BOT_TOKEN,
-            webhook_url=f"{webhook_url}/{TELEGRAM_BOT_TOKEN}",
+            webhook_url=f"{webhook_url}/{TELEGRAM_BOT_TOKEN}" if webhook_url else None,
         )
     else:
         # Polling mode for local development
